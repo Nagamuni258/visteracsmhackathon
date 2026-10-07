@@ -12,7 +12,7 @@
 
 - **Real-World Impact:** Pothole-related accidents in India are underreported. MoRTH data shows thousands of road accident deaths annually; poor road conditions are a documented contributing factor in urban and rural areas. A real-time, community-verified hazard map enables riders to avoid danger and municipalities to prioritize repairs.
 
-- **The RoadBump Solution:** RoadBump is a pedestrian-first hazard reporting platform. A pedestrian walking next to a pothole opens the app, taps **"Report Hazard"**, and takes a photo with their phone camera. The app captures the photo + GPS location + timestamp and instantly pins it on a live map. Nearby pedestrians and riders (within 500m) receive push notifications and see the pin on their map with the reporter's photo as evidence. The reporter gets feedback — other users confirm, reject, or add comments — and the pin's confidence score updates in real time. A municipal report generator produces formatted complaints with photos, GPS coordinates, and severity scores — turning crowd-sourced data into actionable civic intelligence. For vehicle users, the app also runs an optional accelerometer-based auto-detection mode that captures impact signatures and logs them as pins.
+- **The RoadBump Solution:** RoadBump is a vehicle-first road hazard detection system. When the phone is in a moving vehicle, the accelerometer-based auto-detection mode runs in the background, capturing impact signatures and automatically logging them as pins on a live map. Drivers and riders receive audible alerts and haptic feedback when new hazards are detected ahead. When the phone is on-foot (detected via motion state and GPS speed < 5 km/h), the app switches to pedestrian photo-reporting mode: a pedestrian walking next to a pothole opens the app, taps "Report Hazard", and takes a photo with their phone camera. The app captures the photo + GPS location + timestamp and instantly pins it on a live map. Nearby pedestrians and riders (within 500m) receive push notifications and see the pin on their map with the reporter's photo as evidence. The reporter gets feedback — other users confirm, reject, or add comments — and the pin's confidence score updates in real time. A municipal report generator produces formatted complaints with photos, GPS coordinates, and severity scores — turning crowd-sourced data into actionable civic intelligence.
 
 - **Product Relevance:** 100% software-based, requiring zero new hardware. Works on any Android phone with an accelerometer and GPS. Integrates with any navigation app as a hazard overlay. Processes everything locally on-device — no audio, no privacy concern, no network dependency for core detection.
 
@@ -21,10 +21,10 @@
 ## 2. Technology Stack Overview
 
 - **Language & UI:** **Kotlin** with **Jetpack Compose** (Material 3) for reactive, modern UI development.
+- **Sensor Capture (Primary Vehicle Mode):** **Accelerometer** (100 Hz continuous stream) + **GPS** (location + speed at impact moment).
 - **Pedestrian Photo Capture:** **CameraX** for manual hazard photo capture + **GPS** for location + **ExifInterface** for timestamp metadata.
-- **Sensor Capture (Optional Vehicle Mode):** **Accelerometer** (100 Hz continuous stream) + **GPS** (location + speed at impact moment).
-- **Audio System:** **AudioTrack** for hazard alert tones + **TextToSpeech** for voice alerts + **Vibrator** for haptic feedback patterns.
-- **Push Notifications:** **Firebase Cloud Messaging (FCM)** for real-time alerts to nearby pedestrians/riders.
+- **Audio System:** **AudioTrack** for hazard alert tones + **TextToSpeech** for voice warnings + **Vibrator** for haptic feedback patterns.
+- **Push Notifications:** **Firebase Cloud Messaging (FCM)** for real-time alerts to nearby drivers/riders and pedestrians.
 - **Machine Learning:** **TensorFlow Lite (Task Library)** running a quantized (int8) classifier trained on impact signatures — 4 classes: pothole, speed-breaker, metal-plate, flat-road.
 - **Background Execution:** Android **LifecycleService** with `foregroundServiceType="location"`.
 - **Map & Visualization:** **Google Maps SDK** or **OpenStreetMap** with clustered, color-coded hazard pins.
