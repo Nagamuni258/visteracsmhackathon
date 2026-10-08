@@ -1,0 +1,511 @@
+<!DOCTYPE html>
+
+<html lang="en"><head><meta charset="utf-8"/><meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" name="viewport"/><meta content="mobile_tab" name="shell-type"/><link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet"/><link href="https://fonts.googleapis.com" rel="preconnect"/><link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/><link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet"/>
+<style>
+  @layer base {
+    html, body {
+      width: 100vw;
+      margin: 0;
+      padding: 0;
+      background-color: #EEF2F7;
+      font-family: 'Poppins', sans-serif;
+    }
+    body {
+      overscroll-behavior: none;
+    }
+    .pb-safe {
+      padding-bottom: env(safe-area-inset-bottom, 0px);
+    }
+    .pt-safe {
+      padding-top: env(safe-area-inset-top, 0px);
+    }
+    main > :first-child {
+      margin-top: 0 !important;
+    }
+    main > :last-child {
+      margin-bottom: 0 !important;
+    }
+  }
+  ::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Claymorphism 3D tactile utilities */
+  .clay-card {
+    background: #F4F7FB;
+    border-radius: 1.75rem;
+    box-shadow: 8px 8px 18px #d1d9e6, -8px -8px 18px #ffffff;
+    border: 1px solid rgba(255, 255, 255, 0.7);
+  }
+
+  .clay-btn-neutral {
+    background: #EEF2F7;
+    border-radius: 1.25rem;
+    box-shadow: 5px 5px 12px #caced4, -5px -5px 12px #ffffff;
+    border: 1px solid rgba(255, 255, 255, 0.85);
+    transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+  .clay-btn-neutral:active {
+    box-shadow: inset 3px 3px 6px #c4cad3, inset -3px -3px 6px #ffffff;
+    transform: scale(0.97);
+  }
+
+  .clay-btn-primary {
+    background: linear-gradient(135deg, #FF9944, #F26419);
+    color: #ffffff;
+    border-radius: 1.35rem;
+    box-shadow: 6px 8px 16px rgba(242, 100, 25, 0.38), -4px -4px 10px rgba(255, 255, 255, 0.8), inset 0 2px 3px rgba(255, 255, 255, 0.5);
+    border: 1px solid rgba(255, 255, 255, 0.4);
+    transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+  .clay-btn-primary:active {
+    box-shadow: inset 4px 4px 8px #c24608, inset -2px -2px 5px rgba(255, 255, 255, 0.3);
+    transform: scale(0.97);
+  }
+
+  .clay-shutter {
+    background: linear-gradient(145deg, #FFA959, #EA580C);
+    border-radius: 9999px;
+    box-shadow: 8px 10px 20px rgba(234, 88, 12, 0.42), -6px -6px 14px #ffffff, inset 0 3px 4px rgba(255, 255, 255, 0.6);
+    border: 3px solid #FFF2EB;
+    transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+  .clay-shutter:active {
+    box-shadow: inset 5px 5px 10px #b73e04, inset -3px -3px 6px rgba(255, 255, 255, 0.3);
+    transform: scale(0.93);
+  }
+
+  .clay-inset {
+    background: #E6ECF4;
+    box-shadow: inset 4px 4px 8px #c5ceda, inset -4px -4px 8px #ffffff;
+    border-radius: 1.25rem;
+  }
+
+  .clay-badge {
+    background: #F4F7FB;
+    box-shadow: 3px 3px 7px #d0d7e2, -3px -3px 7px #ffffff;
+    border: 1px solid rgba(255, 255, 255, 0.8);
+  }
+
+  .clay-floating-nav {
+    background: rgba(244, 247, 251, 0.94);
+    box-shadow: 0 -8px 24px rgba(184, 197, 214, 0.5), inset 0 1px 2px rgba(255, 255, 255, 0.8);
+    border-top: 1px solid rgba(255, 255, 255, 0.9);
+  }
+
+  .clay-active-tab {
+    background: #FFE8D6;
+    box-shadow: inset 3px 3px 6px #e0c8b3, inset -3px -3px 6px #ffffff;
+  }
+</style>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+  tailwind.config = {
+    theme: {
+      extend: {
+        fontFamily: {
+          sans: ['Poppins', 'sans-serif'],
+        },
+        colors: {
+          clay: {
+            bg: '#EEF2F7',
+            card: '#F4F7FB',
+            inset: '#E6ECF4',
+            dark: '#2B3445',
+            muted: '#68778D',
+            coral: '#EA580C',
+            accent: '#3B82F6',
+            teal: '#0D9488',
+            emerald: '#10B981',
+            rose: '#E11D48',
+          }
+        }
+      }
+    }
+  }
+</script>
+<style>
+  body {
+    min-height: max(884px, 100dvh);
+  }
+</style>
+</head>
+<body class="bg-clay-bg text-clay-dark font-sans flex flex-col min-h-screen antialiased select-none">
+<!-- Header Bar -->
+<header class="fixed top-0 w-full z-50 bg-[#EEF2F7]/90 backdrop-blur-xl pt-safe shadow-[0_4px_16px_rgba(188,198,212,0.4)] border-b border-white/60">
+<div class="h-16 px-4 flex items-center justify-between gap-3">
+<!-- Brand / Title -->
+<div class="flex items-center gap-2.5 min-w-0">
+<div class="w-10 h-10 rounded-2xl clay-card flex items-center justify-center p-1.5 shrink-0">
+<span class="material-symbols-outlined text-[24px] text-orange-500 font-bold">minor_crash</span>
+</div>
+<div class="flex flex-col min-w-0">
+<div class="flex items-center gap-1.5">
+<span class="font-bold text-[18px] tracking-tight text-clay-dark leading-none">RoadBump</span>
+<span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-orange-100 text-orange-600 shadow-[inset_1px_1px_3px_#f2d5bf]">HUD</span>
+</div>
+<div class="flex items-center gap-1.5 mt-1">
+<span class="relative flex h-2 w-2 shrink-0">
+<span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-teal-400 opacity-75"></span>
+<span class="relative inline-flex rounded-full h-2 w-2 bg-teal-500"></span>
+</span>
+<span class="text-[11px] font-medium text-clay-muted">100Hz • ACTIVE</span>
+</div>
+</div>
+</div>
+<!-- Header Actions -->
+<div class="flex items-center gap-2.5 shrink-0">
+<button aria-label="Toggle Night Flash Mode" class="w-10 h-10 flex items-center justify-center rounded-2xl clay-btn-neutral text-clay-muted hover:text-clay-dark" type="button">
+<span class="material-symbols-outlined text-[20px]">flash_on</span>
+</button>
+<button aria-label="Emergency Hazard Alert" class="w-10 h-10 flex items-center justify-center rounded-2xl clay-btn-neutral text-rose-500 relative" type="button">
+<span class="material-symbols-outlined text-[20px]">notifications_active</span>
+<span class="absolute top-2 right-2 w-2.5 h-2.5 rounded-full bg-rose-500 shadow-sm animate-pulse"></span>
+</button>
+<div class="w-10 h-10 rounded-2xl clay-card flex items-center justify-center p-0.5">
+<div class="w-full h-full rounded-xl bg-gradient-to-tr from-amber-400 to-orange-500 flex items-center justify-center shadow-inner">
+<span class="material-symbols-outlined text-white text-[19px]">person</span>
+</div>
+</div>
+</div>
+</div>
+</header>
+<main class="flex flex-col relative w-full pt-20 pb-28 min-h-screen px-4 max-w-lg mx-auto">
+<div class="flex flex-col w-full gap-4">
+<!-- Broadcast alert banner -->
+<div class="hidden p-3.5 clay-card bg-emerald-50 text-emerald-800 items-center gap-3 border border-emerald-200" id="broadcast-alert">
+<div class="w-8 h-8 rounded-xl bg-emerald-500 text-white flex items-center justify-center shadow-sm shrink-0">
+<span class="material-symbols-outlined text-[18px]">radar</span>
+</div>
+<div class="flex flex-col min-w-0">
+<span class="text-xs font-bold uppercase tracking-wider text-emerald-900">FCM Cluster Mesh Queued</span>
+<span class="text-xs text-emerald-700">Broadcasting hazard vector to 14 vehicles within 500m radius</span>
+</div>
+</div>
+<!-- Clay Viewfinder Container -->
+<div class="p-3 clay-card">
+<div class="relative w-full aspect-[4/4.8] rounded-2xl overflow-hidden bg-slate-900 shadow-inner">
+<!-- Live camera feed -->
+<img class="w-full h-full object-cover transition-transform duration-300" data-alt="First-person pedestrian mobile camera view looking down at asphalt city street with severe jagged asphalt pothole exposing gravel base." id="viewfinder-feed" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAY4bMyLpnCB9JFlYz__d3Nl_cXlNy66t7iPfrvaU7S6pFYB8dvHbBRibB2JS1EbmWGrnCAipgeqEvcfVFarWaaT_np-fs6qskRr7e1aIaMtnjth6x-mFcepnGVEfLkcLik7cWri8xFSGEKBPdhJytEE1hx_E-T7upZtHBspENIbSbQLMg64l71LKTN7nUxb26kYoovrC1w-wPdlW1aLLKIyB0-SkY92AhXztA-aVJX"/>
+<!-- Camera overlay gradient -->
+<div class="absolute inset-0 bg-gradient-to-b from-black/40 via-transparent to-black/75 pointer-events-none"></div>
+<!-- Composition Grid Overlay -->
+<div class="absolute inset-0 grid grid-cols-3 grid-rows-3 pointer-events-none opacity-30" id="camera-grid">
+<div class="border-r border-b border-white"></div>
+<div class="border-r border-b border-white"></div>
+<div class="border-b border-white"></div>
+<div class="border-r border-b border-white"></div>
+<div class="border-r border-b border-white"></div>
+<div class="border-b border-white"></div>
+<div class="border-r border-b border-white"></div>
+<div class="border-r border-b border-white"></div>
+<div></div>
+</div>
+<!-- Telemetry Ribbon Bar -->
+<div class="absolute top-3 left-3 right-3 flex items-center justify-between pointer-events-none z-10">
+<div class="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/85 backdrop-blur-md shadow-md">
+<span class="w-2 h-2 rounded-full bg-orange-500 animate-ping"></span>
+<span class="text-[11px] font-bold text-orange-600 uppercase tracking-wider">CameraX Live • 60 FPS</span>
+</div>
+<div class="flex items-center gap-1 px-3 py-1.5 rounded-full bg-white/85 backdrop-blur-md shadow-md">
+<span class="material-symbols-outlined text-[13px] text-teal-600 font-bold">satellite_alt</span>
+<span class="text-[11px] font-bold text-teal-700">GPS LOCK ±3m</span>
+</div>
+</div>
+<!-- AI Reticle Target Box -->
+<div class="absolute top-[28%] left-[16%] w-[68%] h-[42%] pointer-events-none flex flex-col justify-between p-2">
+<div class="flex justify-between w-full">
+<div class="w-5 h-5 border-t-4 border-l-4 border-amber-400 rounded-tl-lg shadow-sm"></div>
+<div class="w-5 h-5 border-t-4 border-r-4 border-amber-400 rounded-tr-lg shadow-sm"></div>
+</div>
+<div class="self-center flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/90 text-white shadow-lg backdrop-blur-md animate-pulse border border-amber-200">
+<span class="material-symbols-outlined text-[15px]">warning</span>
+<span class="text-[11px] font-bold tracking-wide uppercase">Pothole Detected • 91.8%</span>
+</div>
+<div class="flex justify-between w-full">
+<div class="w-5 h-5 border-b-4 border-l-4 border-amber-400 rounded-bl-lg shadow-sm"></div>
+<div class="w-5 h-5 border-b-4 border-r-4 border-amber-400 rounded-br-lg shadow-sm"></div>
+</div>
+</div>
+<!-- Telemetry Stamp -->
+<div class="absolute bottom-14 left-3 right-3 p-2.5 rounded-xl bg-white/85 backdrop-blur-md text-clay-dark flex flex-col gap-1 pointer-events-none z-10 shadow-md">
+<div class="flex items-center justify-between text-[11px] font-semibold">
+<div class="flex items-center gap-1 text-orange-600 font-bold">
+<span class="material-symbols-outlined text-[13px]">location_on</span>
+<span>LAT: 12.9716° N • LNG: 77.5946° E</span>
+</div>
+<span class="text-teal-700 font-bold">HDG 284° WNW</span>
+</div>
+<div class="flex items-center justify-between text-[10px] text-clay-muted">
+<div class="flex items-center gap-1">
+<span class="material-symbols-outlined text-[12px]">directions_walk</span>
+<span>1.8 km/h (Walking Mode Auto)</span>
+</div>
+<span class="font-mono font-medium text-slate-700">2026-10-07 14:32:10 IST</span>
+</div>
+</div>
+<!-- In-viewfinder Tactical Controls Bar -->
+<div class="absolute bottom-2 left-0 right-0 px-3 flex items-center justify-between z-20">
+<button aria-label="Toggle Flash Mode" class="w-9 h-9 rounded-xl bg-white/90 text-slate-700 backdrop-blur-md flex items-center justify-center shadow-md active:scale-95 transition-transform" id="btn-flash" type="button">
+<span class="material-symbols-outlined text-[18px]" id="flash-icon">flash_off</span>
+</button>
+<div class="flex p-0.5 rounded-xl bg-white/90 backdrop-blur-md shadow-md gap-0.5">
+<button class="px-2.5 h-7 rounded-lg bg-orange-500 text-white text-[11px] font-bold shadow-sm transition-all" id="zoom-1x" type="button">1X</button>
+<button class="px-2.5 h-7 rounded-lg text-slate-700 text-[11px] font-semibold transition-all" id="zoom-2x" type="button">2X</button>
+</div>
+<button aria-label="Toggle Composition Grid" class="w-9 h-9 rounded-xl bg-white/90 text-orange-600 backdrop-blur-md flex items-center justify-center shadow-md active:scale-95 transition-transform" id="btn-grid" type="button">
+<span class="material-symbols-outlined text-[18px]">grid_4x4</span>
+</button>
+</div>
+</div>
+<!-- Tactile Shutter Dock Zone -->
+<div class="flex items-center justify-around pt-4 pb-2">
+<!-- Gallery Preview -->
+<div class="w-12 h-12 rounded-2xl clay-card overflow-hidden p-1 flex items-center justify-center relative cursor-pointer active:scale-95 transition-transform">
+<img class="w-full h-full object-cover rounded-xl" data-alt="Micro thumbnail of municipal roadway asphalt condition." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCeyO4qvPF0PC5UQao-gFRsgHXTP99f9YyRlmTIXO40Ea2MHKAY16NVj780chCwo40XggWjJijFR28hKmvmYD4DmcIHdidYFml2dYAU0YjaREKf3SFwPVTLTUmI84_E9RbCy-0gv8kXF-z9JfPLfRQlC9MVWMivIz_D6nFGDRvssRK3B3PeUUoJSgxrbZezegAnGHiNBhu5USeHDZrhF7oHdsLpg-BLYk6QoDAdI4B5"/>
+<span class="material-symbols-outlined absolute text-[16px] text-white drop-shadow">history</span>
+</div>
+<!-- Primary Tactile Shutter Button -->
+<button aria-label="Snap Hazard Photo" class="w-[74px] h-[74px] clay-shutter flex items-center justify-center group" id="btn-shutter" type="button">
+<div class="w-12 h-12 rounded-full bg-white/20 flex items-center justify-center shadow-inner">
+<span class="material-symbols-outlined text-[32px] text-white">photo_camera</span>
+</div>
+</button>
+<!-- IMU Gyro Alignment -->
+<button class="w-12 h-12 rounded-2xl clay-btn-neutral flex flex-col items-center justify-center text-clay-muted hover:text-clay-dark" title="IMU Gyro Alignment" type="button">
+<span class="material-symbols-outlined text-[18px] text-teal-600">screen_rotation</span>
+<span class="text-[9px] font-bold text-clay-muted mt-0.5">0.4° ROLL</span>
+</button>
+</div>
+</div>
+<!-- Compression & Metadata Card -->
+<div class="p-4 clay-card flex gap-3.5 items-center">
+<div class="relative w-16 h-16 rounded-2xl overflow-hidden shrink-0 clay-inset p-0.5">
+<img class="w-full h-full object-cover rounded-xl" data-alt="Close up high detail photograph of severe asphalt pavement rupture." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDHzc__Af1-HIowup59Yj9mORV_PLHYD7EnydmHCtSsQu_MfnI_FtI-JiLIp6tjVdncqMmlM8Fl9C6QnaXuAfZY25qX13g0HMfQE2DAK9o6sb6JD-pJHNJ3Z2JzufDoRQgrUqPuiaizJk3WAaNVPKwi7fmP2ntsdKtZ2ammezkCrIt3bFKWNXMBbU9pdXULCob0oB_DmoNc5s-E5Bll9Qfgy1IHxIV5MJLbRNw-7Xwi"/>
+<span class="absolute bottom-1 right-1 px-1 py-0.2 rounded-md bg-white/90 text-teal-700 font-bold text-[8px] shadow">AI OK</span>
+</div>
+<div class="flex flex-col min-w-0 flex-1 justify-between">
+<div class="flex items-center justify-between">
+<span class="font-bold text-[15px] text-clay-dark truncate">Frame #RB-8921</span>
+<span class="text-[10px] font-bold text-orange-700 px-2 py-0.5 rounded-full bg-orange-100 shadow-[inset_1px_1px_2px_#fed7aa]">EXIF ATTACHED</span>
+</div>
+<div class="flex items-center gap-1.5 mt-1 text-clay-muted text-[11px] font-medium">
+<span class="material-symbols-outlined text-[14px] text-teal-600">compress</span>
+<span>Optimized: 800px width • 142 KB</span>
+</div>
+<p class="text-[11px] text-clay-muted mt-0.5">Zero-latency Edge compression completed in 32ms</p>
+</div>
+</div>
+<!-- Hazard Classification Selector Grid -->
+<div class="flex flex-col gap-2">
+<div class="flex items-center justify-between px-1">
+<label class="text-[11px] font-bold text-clay-muted uppercase tracking-wider">Hazard Classification</label>
+<span class="text-[11px] font-semibold text-orange-600">Auto-Selected by Vision Engine</span>
+</div>
+<div class="grid grid-cols-2 gap-2.5" id="hazard-chips">
+<button class="hazard-chip flex items-center justify-center gap-2 h-12 px-3 clay-btn-primary font-semibold text-[13px]" data-type="pothole" type="button">
+<span class="material-symbols-outlined text-[18px]">radio_button_checked</span>
+<span>Pothole</span>
+</button>
+<button class="hazard-chip flex items-center justify-center gap-2 h-12 px-3 clay-btn-neutral text-clay-dark font-semibold text-[13px]" data-type="speed-breaker" type="button">
+<span class="material-symbols-outlined text-[18px] text-amber-600">texture</span>
+<span>Speed-breaker</span>
+</button>
+<button class="hazard-chip flex items-center justify-center gap-2 h-12 px-3 clay-btn-neutral text-clay-dark font-semibold text-[13px]" data-type="metal-plate" type="button">
+<span class="material-symbols-outlined text-[18px] text-blue-600">shield</span>
+<span>Metal Plate</span>
+</button>
+<button class="hazard-chip flex items-center justify-center gap-2 h-12 px-3 clay-btn-neutral text-clay-dark font-semibold text-[13px]" data-type="manhole" type="button">
+<span class="material-symbols-outlined text-[18px] text-rose-600">emergency_heat</span>
+<span>Manhole / Cave-in</span>
+</button>
+</div>
+</div>
+<!-- Severity Scale Rating Card -->
+<div class="p-4 clay-card flex flex-col gap-3">
+<div class="flex items-center justify-between">
+<span class="text-[11px] font-bold text-clay-muted uppercase tracking-wider">Severity Assessment</span>
+<span class="text-[11px] font-bold text-orange-600 uppercase" id="severity-label">Severe (Grade 3/4)</span>
+</div>
+<div class="grid grid-cols-4 gap-2" id="severity-selector">
+<button class="severity-btn flex flex-col items-center justify-center py-2.5 rounded-2xl clay-btn-neutral text-clay-muted font-medium" data-level="1" type="button">
+<span class="material-symbols-outlined text-[20px]">star</span>
+<span class="text-[11px] font-semibold mt-0.5">Minor</span>
+</button>
+<button class="severity-btn flex flex-col items-center justify-center py-2.5 rounded-2xl clay-btn-neutral text-clay-muted font-medium" data-level="2" type="button">
+<span class="material-symbols-outlined text-[20px] text-amber-500">star</span>
+<span class="text-[11px] font-semibold mt-0.5">Moderate</span>
+</button>
+<button class="severity-btn active flex flex-col items-center justify-center py-2.5 rounded-2xl clay-btn-primary font-bold shadow-md" data-level="3" type="button">
+<span class="material-symbols-outlined text-[20px] text-white" style="font-variation-settings: 'FILL' 1;">star</span>
+<span class="text-[11px] font-bold mt-0.5">Severe</span>
+</button>
+<button class="severity-btn flex flex-col items-center justify-center py-2.5 rounded-2xl clay-btn-neutral text-clay-muted font-medium" data-level="4" type="button">
+<span class="material-symbols-outlined text-[20px] text-rose-500">warning</span>
+<span class="text-[11px] font-semibold mt-0.5">Critical</span>
+</button>
+</div>
+</div>
+<!-- Field Observation Notes Inset -->
+<div class="flex flex-col gap-2">
+<label class="text-[11px] font-bold text-clay-muted uppercase tracking-wider px-1" for="hazard-note">Field Observation Notes</label>
+<div class="relative clay-inset p-3 border border-white/60">
+<textarea class="w-full bg-transparent text-clay-dark placeholder:text-clay-muted text-[13px] leading-relaxed focus:outline-none resize-none font-medium" id="hazard-note" rows="2">Large pothole on curb side, hazardous for two-wheelers and night cyclists.</textarea>
+<div class="flex justify-end mt-1">
+<span class="text-[10px] font-semibold text-clay-muted">74 / 140</span>
+</div>
+</div>
+</div>
+<!-- FCM Push Guarantee Pill -->
+<div class="flex items-center gap-2.5 px-4 py-3 rounded-2xl clay-card text-teal-800 border border-teal-100 bg-teal-50/50">
+<div class="w-7 h-7 rounded-xl bg-teal-500 text-white flex items-center justify-center shadow-sm shrink-0">
+<span class="material-symbols-outlined text-[16px]">speed</span>
+</div>
+<span class="text-xs font-semibold text-teal-900 leading-snug">Zero-latency FCM push will notify vehicles within 500m</span>
+</div>
+<!-- Primary Clay Action Buttons -->
+<div class="flex flex-col gap-3 pt-2">
+<button class="w-full h-14 rounded-2xl clay-btn-primary font-bold text-[16px] flex items-center justify-center gap-2.5 shadow-lg" id="btn-broadcast" type="button">
+<span class="material-symbols-outlined text-[22px]">cell_tower</span>
+<span>Submit &amp; Broadcast (500m)</span>
+</button>
+<button class="w-full h-12 rounded-2xl clay-btn-neutral text-clay-dark font-semibold text-[14px] flex items-center justify-center gap-2" id="btn-retake" type="button">
+<span class="material-symbols-outlined text-[18px] text-clay-muted">replay</span>
+<span>Retake Photo</span>
+</button>
+</div>
+</div>
+</main>
+<!-- Clay Bottom Navigation Bar -->
+<nav class="fixed bottom-0 w-full z-50 pb-safe clay-floating-nav">
+<div class="flex items-center justify-around h-16 px-2 max-w-lg mx-auto">
+<a class="flex flex-col items-center justify-center gap-0.5 min-w-[58px] h-12 rounded-2xl text-clay-muted hover:text-clay-dark transition-all" data-path="telemetry" href="#">
+<span class="material-symbols-outlined text-[22px]">speed</span>
+<span class="text-[10px] font-semibold">HUD</span>
+</a>
+<a class="flex flex-col items-center justify-center gap-0.5 min-w-[58px] h-12 rounded-2xl text-clay-muted hover:text-clay-dark transition-all" data-path="hazard-map" href="#">
+<span class="material-symbols-outlined text-[22px]">explore</span>
+<span class="text-[10px] font-semibold">Map</span>
+</a>
+<a aria-current="page" class="flex flex-col items-center justify-center gap-0.5 min-w-[62px] h-12 rounded-2xl clay-active-tab text-orange-600 transition-all font-bold" data-path="report" href="#">
+<span class="material-symbols-outlined text-[22px]" style="font-variation-settings: 'FILL' 1;">photo_camera</span>
+<span class="text-[10px] font-bold">Report</span>
+</a>
+<a class="flex flex-col items-center justify-center gap-0.5 min-w-[58px] h-12 rounded-2xl text-clay-muted hover:text-clay-dark transition-all" data-path="calibrate" href="#">
+<span class="material-symbols-outlined text-[22px]">tune</span>
+<span class="text-[10px] font-semibold">Sensor</span>
+</a>
+<a class="flex flex-col items-center justify-center gap-0.5 min-w-[58px] h-12 rounded-2xl text-clay-muted hover:text-clay-dark transition-all" data-path="admin-&amp;-civic" href="#">
+<span class="material-symbols-outlined text-[22px]">policy</span>
+<span class="text-[10px] font-semibold">Civic</span>
+</a>
+</div>
+</nav>
+<script>
+  // Camera zoom toggle interaction
+  const zoom1x = document.getElementById('zoom-1x');
+  const zoom2x = document.getElementById('zoom-2x');
+  const feed = document.getElementById('viewfinder-feed');
+
+  zoom1x.addEventListener('click', () => {
+    zoom1x.className = 'px-2.5 h-7 rounded-lg bg-orange-500 text-white text-[11px] font-bold shadow-sm transition-all';
+    zoom2x.className = 'px-2.5 h-7 rounded-lg text-slate-700 text-[11px] font-semibold transition-all';
+    feed.style.transform = 'scale(1)';
+  });
+
+  zoom2x.addEventListener('click', () => {
+    zoom2x.className = 'px-2.5 h-7 rounded-lg bg-orange-500 text-white text-[11px] font-bold shadow-sm transition-all';
+    zoom1x.className = 'px-2.5 h-7 rounded-lg text-slate-700 text-[11px] font-semibold transition-all';
+    feed.style.transform = 'scale(1.4)';
+  });
+
+  // Flash toggle interaction
+  const flashBtn = document.getElementById('btn-flash');
+  const flashIcon = document.getElementById('flash-icon');
+  let flashActive = false;
+  flashBtn.addEventListener('click', () => {
+    flashActive = !flashActive;
+    flashIcon.innerText = flashActive ? 'flash_on' : 'flash_off';
+    flashBtn.classList.toggle('text-orange-500', flashActive);
+  });
+
+  // Grid toggle
+  const gridBtn = document.getElementById('btn-grid');
+  const cameraGrid = document.getElementById('camera-grid');
+  gridBtn.addEventListener('click', () => {
+    cameraGrid.classList.toggle('hidden');
+    gridBtn.classList.toggle('text-orange-600');
+    gridBtn.classList.toggle('text-slate-700');
+  });
+
+  // Hazard Chip Selection in Clay style
+  const chips = document.querySelectorAll('.hazard-chip');
+  chips.forEach(chip => {
+    chip.addEventListener('click', () => {
+      chips.forEach(c => {
+        c.className = 'hazard-chip flex items-center justify-center gap-2 h-12 px-3 clay-btn-neutral text-clay-dark font-semibold text-[13px]';
+      });
+      chip.className = 'hazard-chip flex items-center justify-center gap-2 h-12 px-3 clay-btn-primary font-semibold text-[13px]';
+    });
+  });
+
+  // Severity Level Selector
+  const severityBtns = document.querySelectorAll('.severity-btn');
+  const severityLabel = document.getElementById('severity-label');
+  const severityTexts = {
+    '1': 'Minor (Grade 1/4)',
+    '2': 'Moderate (Grade 2/4)',
+    '3': 'Severe (Grade 3/4)',
+    '4': 'Critical Disruption (Grade 4/4)'
+  };
+
+  severityBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+      severityBtns.forEach(b => {
+        b.className = 'severity-btn flex flex-col items-center justify-center py-2.5 rounded-2xl clay-btn-neutral text-clay-muted font-medium';
+        const star = b.querySelector('.material-symbols-outlined');
+        if (star) star.style.fontVariationSettings = "'FILL' 0";
+      });
+      btn.className = 'severity-btn active flex flex-col items-center justify-center py-2.5 rounded-2xl clay-btn-primary font-bold shadow-md';
+      const icon = btn.querySelector('.material-symbols-outlined');
+      if (icon) icon.style.fontVariationSettings = "'FILL' 1";
+      const level = btn.getAttribute('data-level');
+      severityLabel.innerText = severityTexts[level];
+    });
+  });
+
+  // Shutter Haptic & Visual Flash Effect
+  const shutterBtn = document.getElementById('btn-shutter');
+  shutterBtn.addEventListener('click', () => {
+    const flashScreen = document.createElement('div');
+    flashScreen.className = 'fixed inset-0 bg-white opacity-90 z-50 pointer-events-none transition-opacity duration-200';
+    document.body.appendChild(flashScreen);
+    setTimeout(() => {
+      flashScreen.style.opacity = '0';
+      setTimeout(() => flashScreen.remove(), 200);
+    }, 60);
+  });
+
+  // Broadcast Action Simulation
+  const broadcastBtn = document.getElementById('btn-broadcast');
+  const broadcastAlert = document.getElementById('broadcast-alert');
+  broadcastBtn.addEventListener('click', () => {
+    broadcastAlert.classList.remove('hidden');
+    broadcastAlert.classList.add('flex');
+    broadcastBtn.innerHTML = '<span class="material-symbols-outlined text-[20px] animate-spin">sync</span><span>Transmitting Telemetry Payload...</span>';
+    setTimeout(() => {
+      broadcastBtn.innerHTML = '<span class="material-symbols-outlined text-[22px]">check_circle</span><span>Broadcast Confirmed (14 Peers)</span>';
+      broadcastBtn.className = 'w-full h-14 rounded-2xl clay-btn-neutral bg-teal-500 text-white font-bold text-[16px] flex items-center justify-center gap-2.5 shadow-lg border-teal-400';
+    }, 1200);
+  });
+
+  // Retake Button simulation
+  const retakeBtn = document.getElementById('btn-retake');
+  retakeBtn.addEventListener('click', () => {
+    broadcastAlert.classList.add('hidden');
+    broadcastAlert.classList.remove('flex');
+    broadcastBtn.className = 'w-full h-14 rounded-2xl clay-btn-primary font-bold text-[16px] flex items-center justify-center gap-2.5 shadow-lg';
+    broadcastBtn.innerHTML = '<span class="material-symbols-outlined text-[22px]">cell_tower</span><span>Submit &amp; Broadcast (500m)</span>';
+  });
+</script>
+</body></html>

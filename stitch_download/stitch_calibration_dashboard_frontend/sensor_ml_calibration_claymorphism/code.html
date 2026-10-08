@@ -1,0 +1,734 @@
+<!DOCTYPE html>
+
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" name="viewport"/>
+<meta content="mobile_tab" name="shell-type"/>
+<title>RoadBump - Sensor &amp; Model Calibration</title>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<style>
+    :root {
+      --clay-bg: #EEF2F7;
+    }
+    body {
+      font-family: 'Poppins', sans-serif;
+      background-color: #EEF2F7;
+      color: #2D3748;
+      overscroll-behavior: none;
+      -webkit-font-smoothing: antialiased;
+      min-height: max(884px, 100dvh);
+    }
+    .pb-safe { padding-bottom: env(safe-area-inset-bottom, 0px); }
+    .pt-safe { padding-top: env(safe-area-inset-top, 0px); }
+    ::-webkit-scrollbar { display: none; }
+
+    /* Tactile Claymorphism Utilities */
+    .clay-card {
+      background: #EEF2F7;
+      border-radius: 1.75rem;
+      box-shadow: 8px 8px 18px rgba(160, 175, 195, 0.45),
+                  -8px -8px 18px rgba(255, 255, 255, 0.95),
+                  inset 2px 2px 4px rgba(255, 255, 255, 0.8),
+                  inset -2px -2px 4px rgba(160, 175, 195, 0.18);
+    }
+    .clay-card-sm {
+      background: #F4F7FB;
+      border-radius: 1.25rem;
+      box-shadow: 5px 5px 12px rgba(160, 175, 195, 0.35),
+                  -5px -5px 12px rgba(255, 255, 255, 0.9),
+                  inset 2px 2px 4px rgba(255, 255, 255, 0.7),
+                  inset -2px -2px 4px rgba(160, 175, 195, 0.12);
+    }
+    .clay-inset {
+      background: #E2E8F0;
+      border-radius: 1.25rem;
+      box-shadow: inset 4px 4px 8px rgba(160, 175, 195, 0.5),
+                  inset -4px -4px 8px rgba(255, 255, 255, 0.95);
+    }
+    .clay-pill {
+      box-shadow: 4px 4px 10px rgba(160, 175, 195, 0.35),
+                  -4px -4px 10px rgba(255, 255, 255, 0.9),
+                  inset 1px 1px 3px rgba(255, 255, 255, 0.8),
+                  inset -1px -1px 3px rgba(160, 175, 195, 0.2);
+    }
+    .clay-button-primary {
+      background: linear-gradient(135deg, #FF6F61 0%, #EE5253 100%);
+      color: #FFFFFF;
+      box-shadow: 6px 6px 16px rgba(238, 82, 83, 0.38),
+                  -4px -4px 12px rgba(255, 255, 255, 0.9),
+                  inset 2px 2px 5px rgba(255, 255, 255, 0.4),
+                  inset -2px -2px 5px rgba(0, 0, 0, 0.18);
+    }
+    .clay-button-primary:active {
+      box-shadow: inset 3px 3px 6px rgba(0, 0, 0, 0.25),
+                  inset -2px -2px 5px rgba(255, 255, 255, 0.2);
+      transform: scale(0.98);
+    }
+    .clay-button-secondary {
+      background: #EEF2F7;
+      color: #3B82F6;
+      box-shadow: 5px 5px 12px rgba(160, 175, 195, 0.45),
+                  -5px -5px 12px rgba(255, 255, 255, 0.95),
+                  inset 1px 1px 3px rgba(255, 255, 255, 0.9),
+                  inset -1px -1px 3px rgba(160, 175, 195, 0.15);
+    }
+    .clay-button-secondary:active {
+      box-shadow: inset 3px 3px 6px rgba(160, 175, 195, 0.5),
+                  inset -3px -3px 6px rgba(255, 255, 255, 0.8);
+      transform: scale(0.98);
+    }
+
+    /* Clay Range Sliders */
+    input[type=range].clay-slider {
+      -webkit-appearance: none;
+      appearance: none;
+      background: #E2E8F0;
+      height: 12px;
+      border-radius: 9999px;
+      box-shadow: inset 2px 2px 5px rgba(160, 175, 195, 0.55),
+                  inset -2px -2px 5px rgba(255, 255, 255, 0.9);
+      outline: none;
+    }
+    input[type=range].clay-slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 26px;
+      height: 26px;
+      border-radius: 50%;
+      background: radial-gradient(circle at 35% 35%, #FFFFFF, #FFA07A 70%, #E65100 100%);
+      box-shadow: 4px 4px 10px rgba(230, 81, 0, 0.4),
+                  -3px -3px 7px rgba(255, 255, 255, 0.9),
+                  inset 2px 2px 3px rgba(255, 255, 255, 0.8);
+      cursor: pointer;
+      transition: transform 0.1s ease;
+    }
+    input[type=range].clay-slider-blue::-webkit-slider-thumb {
+      background: radial-gradient(circle at 35% 35%, #FFFFFF, #60A5FA 70%, #2563EB 100%);
+      box-shadow: 4px 4px 10px rgba(37, 99, 235, 0.4),
+                  -3px -3px 7px rgba(255, 255, 255, 0.9),
+                  inset 2px 2px 3px rgba(255, 255, 255, 0.8);
+    }
+    input[type=range].clay-slider::-webkit-slider-thumb:active {
+      transform: scale(1.15);
+    }
+
+    /* Clay Checkbox */
+    .clay-checkbox {
+      appearance: none;
+      -webkit-appearance: none;
+      width: 26px;
+      height: 26px;
+      border-radius: 8px;
+      background: #EEF2F7;
+      box-shadow: inset 3px 3px 6px rgba(160, 175, 195, 0.45),
+                  inset -3px -3px 6px rgba(255, 255, 255, 0.9);
+      position: relative;
+      cursor: pointer;
+      outline: none;
+      transition: all 0.2s ease;
+    }
+    .clay-checkbox:checked {
+      background: linear-gradient(135deg, #FF6F61, #EE5253);
+      box-shadow: 3px 3px 8px rgba(238, 82, 83, 0.4),
+                  -2px -2px 6px rgba(255, 255, 255, 0.8),
+                  inset 1px 1px 3px rgba(255, 255, 255, 0.6);
+    }
+    .clay-checkbox:checked::after {
+      content: '✓';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      color: white;
+      font-size: 16px;
+      font-weight: 700;
+    }
+  </style>
+</head>
+<body class="flex flex-col min-h-screen text-[#2C3E50]">
+<!-- Top App Header -->
+<header class="fixed top-0 w-full z-50 bg-[#EEF2F7]/90 backdrop-blur-xl pt-safe shadow-[0_4px_16px_rgba(160,175,195,0.25)]">
+<div class="h-16 px-4 flex items-center justify-between gap-3">
+<div class="flex items-center gap-3 min-w-0">
+<img alt="RoadBump Logo" class="h-8 w-auto object-contain shrink-0 drop-shadow-sm" src="https://lh3.googleusercontent.com/aida/AEtjO1WrRt-gQHeMBl6nz1UZFvKvnj0RXHNJGaNY0pgDcCpZUWjKN9dpfrG-GFsqqOWaHDMo8-NspjXL9Y48fb4gba35rD9JAABqXDxsU1liJSr9Mr450pCT-VMfRz2s0seM7_nLYA1FZTp-4EGiT6kLQ4SEGZTruQ2dTw09AcWe8rVjZ1YZMBzp2ECs8dSro-fg_rwY2IwWXOhuMY2-knvVErRUKxIFAMjaVfmPUqBZgD-z5g"/>
+<div class="flex flex-col min-w-0">
+<div class="flex items-center gap-1.5">
+<span class="text-[17px] font-bold tracking-tight text-[#1E293B] leading-none truncate">RoadBump</span>
+<span class="text-[10px] font-bold text-[#FF6F61] px-2 py-0.5 rounded-full bg-white clay-pill tracking-wider uppercase shrink-0">HUD</span>
+</div>
+<div class="flex items-center gap-1.5 mt-1">
+<span class="relative flex h-2 w-2 shrink-0">
+<span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#10B981] opacity-75"></span>
+<span class="relative inline-flex rounded-full h-2 w-2 bg-[#10B981]"></span>
+</span>
+<span class="text-[10px] font-semibold text-[#64748B] truncate tracking-wider">100Hz • ACTIVE</span>
+</div>
+</div>
+</div>
+<div class="flex items-center gap-2 shrink-0">
+<button aria-label="Toggle Night Flash Mode" class="w-10 h-10 flex items-center justify-center rounded-2xl bg-[#EEF2F7] clay-pill text-[#64748B] hover:text-[#3B82F6] active:scale-95 transition-all" type="button">
+<span class="material-symbols-outlined text-[20px]">flash_on</span>
+</button>
+<button aria-label="Emergency Hazard Alert" class="w-10 h-10 flex items-center justify-center rounded-2xl bg-[#FFE4E4] clay-pill text-[#EF4444] active:scale-95 transition-all relative" type="button">
+<span class="material-symbols-outlined text-[20px]">notifications_active</span>
+<span class="absolute top-2 right-2 w-2 h-2 rounded-full bg-[#EF4444] animate-pulse"></span>
+</button>
+<div class="w-9 h-9 rounded-2xl bg-gradient-to-tr from-[#3B82F6] to-[#60A5FA] clay-pill flex items-center justify-center ml-0.5 shadow-sm">
+<span class="material-symbols-outlined text-white text-[18px]">person</span>
+</div>
+</div>
+</div>
+</header>
+<!-- Main Content Area -->
+<main class="flex flex-col relative w-full pt-20 pb-28 min-h-screen">
+<div class="flex flex-col w-full px-4 py-2 gap-5">
+<!-- Header Breadcrumb & Subhead -->
+<div class="flex items-center justify-between mt-1">
+<div class="flex flex-col min-w-0">
+<div class="flex items-center gap-1.5">
+<span class="material-symbols-outlined text-[#FF6F61] text-[18px]">tune</span>
+<span class="text-[11px] font-bold tracking-wider uppercase text-[#FF6F61]">DIAGNOSTICS &amp; TELEMETRY</span>
+</div>
+<h1 class="text-[22px] text-[#1E293B] font-extrabold tracking-tight mt-0.5">Sensor &amp; Model Calibration</h1>
+</div>
+<div class="flex items-center gap-1.5 bg-[#E6F4EA] px-3 py-1.5 rounded-full clay-pill shrink-0">
+<span class="h-2 w-2 rounded-full bg-[#10B981] animate-pulse"></span>
+<span class="text-[10px] text-[#065F46] font-bold tracking-wider">DSP SYNCED</span>
+</div>
+</div>
+<!-- SECTION 1: Active Sensor Pipeline Status (Clay Cards Grid) -->
+<div class="clay-card p-4 flex flex-col gap-3">
+<div class="flex items-center justify-between pb-0.5">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-[#3B82F6] text-[20px]">precision_manufacturing</span>
+<span class="text-[11px] font-bold uppercase tracking-wider text-[#64748B]">Active Sensor Pipeline Status</span>
+</div>
+<span class="text-[10px] font-bold text-[#10B981] px-2.5 py-0.5 rounded-full bg-white clay-pill tracking-wider">RUNNING</span>
+</div>
+<div class="grid grid-cols-2 gap-3">
+<!-- Accel Metric Well -->
+<div class="clay-card-sm p-3.5 flex flex-col justify-between">
+<div class="flex items-center justify-between">
+<span class="text-[10px] font-bold uppercase tracking-wider text-[#64748B]">IMU SAMPLING</span>
+<span class="material-symbols-outlined text-[#3B82F6] text-[16px]">sensors</span>
+</div>
+<div class="mt-1.5">
+<div class="text-[22px] font-extrabold text-[#1E293B] leading-tight">100 <span class="text-[#3B82F6] text-[13px] font-semibold">Hz</span></div>
+<p class="text-[10px] font-medium text-[#64748B] mt-0.5">High-pass Filter &gt;10 Hz</p>
+</div>
+</div>
+<!-- Speed Gate Metric Well -->
+<div class="clay-card-sm p-3.5 flex flex-col justify-between">
+<div class="flex items-center justify-between">
+<span class="text-[10px] font-bold uppercase tracking-wider text-[#64748B]">SPEED GATE</span>
+<span class="material-symbols-outlined text-[#FF6F61] text-[16px]">speed</span>
+</div>
+<div class="mt-1.5">
+<div class="text-[22px] font-extrabold text-[#FF6F61] leading-tight">38.4 <span class="text-[#64748B] text-[13px] font-medium">km/h</span></div>
+<p class="text-[10px] font-medium text-[#10B981] mt-0.5">Active (&gt;5.0 km/h Gate)</p>
+</div>
+</div>
+<!-- Edge Inference Well -->
+<div class="clay-card-sm p-3.5 flex flex-col justify-between">
+<div class="flex items-center justify-between">
+<span class="text-[10px] font-bold uppercase tracking-wider text-[#64748B]">EDGE INFERENCE</span>
+<span class="material-symbols-outlined text-[#F59E0B] text-[16px]">memory</span>
+</div>
+<div class="mt-1.5">
+<div class="text-[14px] font-bold text-[#1E293B] truncate tracking-tight">impact_v2.tflite</div>
+<p class="text-[10px] font-medium text-[#64748B] mt-0.5">Quantized INT8 • 4 Class</p>
+</div>
+</div>
+<!-- Consensus Logic Well -->
+<div class="clay-card-sm p-3.5 flex flex-col justify-between">
+<div class="flex items-center justify-between">
+<span class="text-[10px] font-bold uppercase tracking-wider text-[#64748B]">VOTING RULE</span>
+<span class="material-symbols-outlined text-[#8B5CF6] text-[16px]">how_to_reg</span>
+</div>
+<div class="mt-1.5">
+<div class="text-[22px] font-extrabold text-[#1E293B] leading-tight">2 / 3</div>
+<p class="text-[10px] font-medium text-[#64748B] mt-0.5">Sliding Consensus Buff</p>
+</div>
+</div>
+</div>
+</div>
+<!-- SECTION 2: Live Accelerometer Waveform Oscillograph -->
+<div class="clay-card p-4 flex flex-col gap-3 relative">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-1.5">
+<span class="material-symbols-outlined text-[#FF6F61] text-[18px]">show_chart</span>
+<span class="text-[11px] font-bold tracking-wider uppercase text-[#64748B]">Live Waveform Visualizer (1D RMS &amp; Tri-Axis)</span>
+</div>
+<div class="flex items-center gap-2">
+<span class="flex items-center gap-1 text-[10px] font-semibold text-[#0EA5E9]"><span class="w-2 h-2 rounded-full bg-[#0EA5E9] shadow-sm"></span>Z</span>
+<span class="flex items-center gap-1 text-[10px] font-semibold text-[#F59E0B]"><span class="w-2 h-2 rounded-full bg-[#F59E0B] shadow-sm"></span>RMS</span>
+<span class="flex items-center gap-1 text-[10px] font-semibold text-[#EF4444]"><span class="w-2 h-2 rounded-full bg-[#EF4444] shadow-sm"></span>Trig</span>
+</div>
+</div>
+<!-- Inset Oscillograph Screen -->
+<div class="relative bg-[#1E2530] rounded-2xl p-2.5 h-40 flex flex-col justify-between overflow-hidden shadow-[inset_4px_4px_10px_rgba(0,0,0,0.5),inset_-3px_-3px_8px_rgba(255,255,255,0.05)] border border-slate-700/40">
+<!-- Subtle Grid Overlay -->
+<div class="absolute inset-0 opacity-20 pointer-events-none" style="background-image: linear-gradient(to right, #64748B 1px, transparent 1px), linear-gradient(to bottom, #64748B 1px, transparent 1px); background-size: 18px 18px;"></div>
+<!-- Threshold Line Marker (RMS 2.0g) -->
+<div class="absolute left-0 right-0 top-[28%] pointer-events-none flex items-center justify-between px-2.5 z-10" id="threshold-line" style="border-top: 1.5px dashed #EF4444; transition: top 0.2s ease;">
+<span class="text-[9px] font-bold text-[#FCA5A5] bg-[#1E2530]/90 px-1.5 py-0.5 rounded shadow uppercase tracking-wider" id="thresh-label">TRIGGER 2.00G</span>
+<span class="text-[9px] font-bold text-[#FCA5A5] bg-[#1E2530]/90 px-1.5 py-0.5 rounded shadow uppercase tracking-wider">RMS LIMIT</span>
+</div>
+<!-- Canvas Trace Area -->
+<canvas class="w-full h-full relative z-10 block" height="140" id="waveform-canvas" width="340"></canvas>
+<!-- Live Readout Overlay Bar -->
+<div class="relative z-20 flex items-center justify-between pt-1 border-t border-slate-700/40 mt-1">
+<div class="flex items-center gap-1.5">
+<span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">MAGNITUDE RMS:</span>
+<span class="text-[12px] font-extrabold text-[#FCD34D]" id="live-rms-val">0.27g</span>
+</div>
+<div class="flex items-center gap-1 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+<span>PEAK:</span>
+<span class="text-[12px] font-extrabold text-[#38BDF8]" id="peak-indicator">0.30g</span>
+</div>
+</div>
+</div>
+<div class="flex items-center justify-between text-[#64748B] px-1 font-semibold text-[10px]">
+<span>T-500ms</span>
+<span class="text-[#3B82F6] font-bold">BUFFER SLIDING [-1.0g, 3.5g]</span>
+<span>T-0ms (NOW)</span>
+</div>
+</div>
+<!-- SECTION 3: Interactive Simulate Test Impact Spike Workbench -->
+<div class="clay-card p-4 flex flex-col gap-3">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-1.5">
+<span class="material-symbols-outlined text-[#F59E0B] text-[20px]">vital_signs</span>
+<span class="text-[11px] font-bold uppercase tracking-wider text-[#64748B]">Simulate Impact Workbench</span>
+</div>
+<span class="text-[10px] font-bold text-[#3B82F6] bg-white px-2 py-0.5 rounded-full clay-pill">DEMO HARNESS</span>
+</div>
+<p class="text-[12px] text-[#64748B] leading-relaxed">
+          Inject synthetic 100Hz IMU vectors to validate model classification &amp; gate rejection logic in real-time.
+        </p>
+<!-- 4 Triggers Grid -->
+<div class="grid grid-cols-2 gap-3 pt-0.5">
+<!-- Pothole Trigger -->
+<button class="group flex flex-col text-left p-3.5 rounded-2xl bg-[#EEF2F7] clay-pill hover:bg-white active:scale-95 transition-all justify-between" id="btn-sim-pothole" type="button">
+<div class="flex items-center justify-between w-full">
+<span class="material-symbols-outlined text-[#EF4444] text-[22px] group-hover:scale-110 transition-transform">landslide</span>
+<span class="text-[9px] font-extrabold px-1.5 py-0.5 rounded-full bg-[#FEE2E2] text-[#B91C1C]">+2.6g DROP</span>
+</div>
+<div class="mt-2.5">
+<div class="text-[13px] font-bold text-[#1E293B]">Pothole</div>
+<div class="text-[10px] font-medium text-[#64748B]">Sharp transient spike</div>
+</div>
+</button>
+<!-- Speed Breaker Trigger -->
+<button class="group flex flex-col text-left p-3.5 rounded-2xl bg-[#EEF2F7] clay-pill hover:bg-white active:scale-95 transition-all justify-between" id="btn-sim-bump" type="button">
+<div class="flex items-center justify-between w-full">
+<span class="material-symbols-outlined text-[#F59E0B] text-[22px] group-hover:scale-110 transition-transform">waves</span>
+<span class="text-[9px] font-extrabold px-1.5 py-0.5 rounded-full bg-[#FEF3C7] text-[#B45309]">1.8g RAMP</span>
+</div>
+<div class="mt-2.5">
+<div class="text-[13px] font-bold text-[#1E293B]">Speed Breaker</div>
+<div class="text-[10px] font-medium text-[#64748B]">Gradual sinusoidal swell</div>
+</div>
+</button>
+<!-- Metal Plate Trigger -->
+<button class="group flex flex-col text-left p-3.5 rounded-2xl bg-[#EEF2F7] clay-pill hover:bg-white active:scale-95 transition-all justify-between" id="btn-sim-plate" type="button">
+<div class="flex items-center justify-between w-full">
+<span class="material-symbols-outlined text-[#3B82F6] text-[22px] group-hover:scale-110 transition-transform">vibration</span>
+<span class="text-[9px] font-extrabold px-1.5 py-0.5 rounded-full bg-[#DBEAFE] text-[#1D4ED8]">150ms CHAT</span>
+</div>
+<div class="mt-2.5">
+<div class="text-[13px] font-bold text-[#1E293B]">Metal Plate</div>
+<div class="text-[10px] font-medium text-[#64748B]">High-freq ringing hash</div>
+</div>
+</button>
+<!-- Flat Road Trigger -->
+<button class="group flex flex-col text-left p-3.5 rounded-2xl bg-[#EEF2F7] clay-pill hover:bg-white active:scale-95 transition-all justify-between" id="btn-sim-flat" type="button">
+<div class="flex items-center justify-between w-full">
+<span class="material-symbols-outlined text-[#64748B] text-[22px] group-hover:scale-110 transition-transform">horizontal_rule</span>
+<span class="text-[9px] font-extrabold px-1.5 py-0.5 rounded-full bg-[#E2E8F0] text-[#475569]">&lt;0.5g BASE</span>
+</div>
+<div class="mt-2.5">
+<div class="text-[13px] font-bold text-[#1E293B]">Flat Asphalt</div>
+<div class="text-[10px] font-medium text-[#64748B]">Zero vibration baseline</div>
+</div>
+</button>
+</div>
+<!-- Active Inference Outcome Banner -->
+<div class="clay-card-sm p-3 flex items-center justify-between transition-all" id="sim-status-banner">
+<div class="flex items-center gap-2.5 min-w-0">
+<span class="material-symbols-outlined text-[#10B981] text-[22px] shrink-0" id="sim-banner-icon">check_circle</span>
+<div class="min-w-0">
+<div class="text-[12px] font-bold text-[#1E293B] truncate" id="sim-banner-title">Model Idle: Baseline Noise</div>
+<div class="text-[10px] font-medium text-[#64748B] truncate" id="sim-banner-sub">Confidence: 99.4% • Flat Road</div>
+</div>
+</div>
+<span class="text-[11px] font-bold text-[#FF6F61] shrink-0" id="sim-banner-time">0 ms</span>
+</div>
+</div>
+<!-- SECTION 4: Calibration Sliders & Math Controls -->
+<div class="clay-card p-4 flex flex-col gap-4">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-1.5">
+<span class="material-symbols-outlined text-[#FF6F61] text-[20px]">tune</span>
+<span class="text-[11px] font-bold uppercase tracking-wider text-[#64748B]">DSP &amp; Gating Thresholds</span>
+</div>
+<span class="text-[10px] font-bold text-[#3B82F6] bg-white px-2 py-0.5 rounded-full clay-pill">TUNING</span>
+</div>
+<!-- Control 1: Impact Threshold Slider -->
+<div class="flex flex-col gap-2">
+<div class="flex items-center justify-between">
+<label class="text-[13px] font-bold text-[#1E293B]" for="slider-rms">Impact Trigger (RMS G-Force)</label>
+<span class="text-[18px] font-extrabold text-[#FF6F61]" id="slider-rms-val">2.00g</span>
+</div>
+<input class="w-full clay-slider cursor-pointer" id="slider-rms" max="4.5" min="1.0" step="0.1" type="range" value="2.0"/>
+<div class="flex justify-between items-center text-[#64748B] font-semibold text-[10px]">
+<span>1.0g (High Sens)</span>
+<span class="text-[#3B82F6]">Live RMS: 0.28g baseline</span>
+<span>4.5g (Stiff Susp)</span>
+</div>
+</div>
+<!-- Control 2: Minimum Vehicle Speed Cutoff -->
+<div class="flex flex-col gap-2">
+<div class="flex items-center justify-between">
+<label class="text-[13px] font-bold text-[#1E293B]" for="slider-speed">Vehicle Speed Cutoff</label>
+<span class="text-[18px] font-extrabold text-[#3B82F6]" id="slider-speed-val">5.0 km/h</span>
+</div>
+<input class="w-full clay-slider clay-slider-blue cursor-pointer" id="slider-speed" max="25" min="0" step="1" type="range" value="5"/>
+<div class="flex justify-between items-center text-[#64748B] font-semibold text-[10px]">
+<span>0 km/h (Raw)</span>
+<span>Filters pedestrian motion &amp; stationary handling</span>
+<span>25 km/h</span>
+</div>
+</div>
+<!-- Math Specs Wells (Window, Normalization Factor) -->
+<div class="grid grid-cols-2 gap-3 pt-0.5">
+<div class="clay-card-sm p-3 flex flex-col justify-between">
+<span class="text-[10px] font-bold uppercase tracking-wider text-[#64748B]">Window &amp; Buffer</span>
+<div class="text-[15px] font-extrabold text-[#1E293B] mt-1">0.50 s <span class="text-[10px] font-bold text-[#3B82F6]">(50 smp)</span></div>
+<p class="text-[9px] font-medium text-[#64748B] mt-0.5">Float32 [-1.0, 1.0]</p>
+</div>
+<div class="clay-card-sm p-3 flex flex-col justify-between">
+<span class="text-[10px] font-bold uppercase tracking-wider text-[#64748B]">Speed Norm Factor</span>
+<div class="text-[15px] font-extrabold text-[#FF6F61] mt-1">√v (sqrt)</div>
+<p class="text-[9px] font-medium text-[#64748B] mt-0.5">Depth ∝ Peak / √V_kmh</p>
+</div>
+</div>
+</div>
+<!-- SECTION 5: Battery & Background Optimization Profile -->
+<div class="clay-card p-4 flex flex-col gap-3">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-1.5">
+<span class="material-symbols-outlined text-[#10B981] text-[20px]">battery_charging_full</span>
+<span class="text-[11px] font-bold uppercase tracking-wider text-[#64748B]">Power &amp; Night Profiling</span>
+</div>
+<span class="text-[10px] font-bold text-[#10B981] bg-white px-2 py-0.5 rounded-full clay-pill">OPTIMIZED</span>
+</div>
+<div class="flex flex-col gap-2.5 pt-1">
+<!-- Toggle 1: Stage-1 Gating Mode -->
+<label class="flex items-center justify-between p-3.5 clay-card-sm cursor-pointer">
+<div class="flex flex-col pr-3">
+<span class="text-[13px] font-bold text-[#1E293B]">Stage-1 Gating Mode</span>
+<span class="text-[10px] font-medium text-[#64748B]">Throttles sensor to 20Hz when stopped (&lt;5%/hr drain)</span>
+</div>
+<input checked="" class="clay-checkbox shrink-0" type="checkbox"/>
+</label>
+<!-- Toggle 2: Night-Mode Visual Warning Flash -->
+<label class="flex items-center justify-between p-3.5 clay-card-sm cursor-pointer">
+<div class="flex flex-col pr-3">
+<span class="text-[13px] font-bold text-[#1E293B]">Night Warning Screen Flash</span>
+<span class="text-[10px] font-medium text-[#64748B]">2-second low-glare HUD amber perimeter pulse</span>
+</div>
+<input checked="" class="clay-checkbox shrink-0" type="checkbox"/>
+</label>
+<!-- Toggle 3: Quiet Hours -->
+<label class="flex items-center justify-between p-3.5 clay-card-sm cursor-pointer">
+<div class="flex flex-col pr-3">
+<span class="text-[13px] font-bold text-[#1E293B]">Quiet Hours (10 PM - 5 AM)</span>
+<span class="text-[10px] font-medium text-[#64748B]">Mute high-tone chimes; tactile vibration alert only</span>
+</div>
+<input class="clay-checkbox shrink-0" type="checkbox"/>
+</label>
+</div>
+</div>
+<!-- SECTION 6: Action Buttons Group -->
+<div class="flex flex-col gap-3 pt-1 pb-2">
+<!-- Puffy Clay Save CTA -->
+<button class="w-full h-13 py-3.5 clay-button-primary rounded-2xl text-[14px] font-bold flex items-center justify-center gap-2 cursor-pointer transition-transform" id="btn-save-profile" type="button">
+<span class="material-symbols-outlined text-[20px]">save</span>
+<span>Save Calibration Profile</span>
+</button>
+<div class="grid grid-cols-2 gap-3">
+<!-- Self Test Button -->
+<button class="h-12 clay-button-secondary rounded-2xl text-[12px] font-bold flex items-center justify-center gap-1.5 cursor-pointer transition-transform" id="btn-run-diag" type="button">
+<span class="material-symbols-outlined text-[18px]">biotech</span>
+<span>Diagnostic Self-Test</span>
+</button>
+<!-- Factory Defaults Button -->
+<button class="h-12 clay-card-sm text-[#64748B] hover:text-[#EF4444] rounded-2xl text-[12px] font-bold flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 transition-all" id="btn-reset-default" type="button">
+<span class="material-symbols-outlined text-[18px]">restart_alt</span>
+<span>Factory Defaults</span>
+</button>
+</div>
+</div>
+<!-- Notification Toast -->
+<div class="fixed bottom-24 left-4 right-4 clay-card bg-white px-4 py-3 flex items-center justify-between opacity-0 pointer-events-none transition-all duration-300 z-50 border border-slate-200/60" id="toast-msg">
+<div class="flex items-center gap-2.5">
+<span class="material-symbols-outlined text-[#10B981] text-[20px]" id="toast-icon">check_circle</span>
+<span class="text-[12px] font-semibold text-[#1E293B]" id="toast-text">Calibration profile committed to NVRAM.</span>
+</div>
+<span class="text-[10px] font-bold text-[#64748B] uppercase">OK</span>
+</div>
+</div>
+<!-- Interactive Script for Oscillograph & Demos -->
+<script>
+      (function initClayRoadBumpCalibration() {
+        const canvas = document.getElementById('waveform-canvas');
+        if (!canvas) return;
+        const ctx = canvas.getContext('2d');
+
+        const rmsValEl = document.getElementById('live-rms-val');
+        const peakValEl = document.getElementById('peak-indicator');
+        const sliderRms = document.getElementById('slider-rms');
+        const sliderRmsVal = document.getElementById('slider-rms-val');
+        const threshLine = document.getElementById('threshold-line');
+        const threshLabel = document.getElementById('thresh-label');
+        const sliderSpeed = document.getElementById('slider-speed');
+        const sliderSpeedVal = document.getElementById('slider-speed-val');
+
+        const bannerIcon = document.getElementById('sim-banner-icon');
+        const bannerTitle = document.getElementById('sim-banner-title');
+        const bannerSub = document.getElementById('sim-banner-sub');
+        const bannerTime = document.getElementById('sim-banner-time');
+
+        let currentThreshold = 2.0;
+        const historyLen = 80;
+        const waveformData = new Array(historyLen).fill(0.27);
+        const zData = new Array(historyLen).fill(0.20);
+        let activeSimulation = null;
+        let simStep = 0;
+        let currentPeak = 0.30;
+
+        function resizeCanvas() {
+          const rect = canvas.getBoundingClientRect();
+          canvas.width = rect.width * (window.devicePixelRatio || 1);
+          canvas.height = rect.height * (window.devicePixelRatio || 1);
+        }
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+
+        if (sliderRms) {
+          sliderRms.addEventListener('input', (e) => {
+            currentThreshold = parseFloat(e.target.value);
+            sliderRmsVal.textContent = currentThreshold.toFixed(2) + 'g';
+            if (threshLabel) threshLabel.textContent = 'TRIGGER ' + currentThreshold.toFixed(2) + 'G';
+            const pct = Math.max(8, Math.min(75, 75 - ((currentThreshold - 1.0) / 3.5) * 60));
+            if (threshLine) threshLine.style.top = pct + '%';
+          });
+        }
+
+        if (sliderSpeed) {
+          sliderSpeed.addEventListener('input', (e) => {
+            sliderSpeedVal.textContent = parseFloat(e.target.value).toFixed(1) + ' km/h';
+          });
+        }
+
+        function triggerSim(type) {
+          simStep = 0;
+          activeSimulation = type;
+          const now = new Date();
+          const timeStr = now.toLocaleTimeString([], { hour12: false, minute: '2-digit', second: '2-digit' }) + '.' + Math.floor(now.getMilliseconds()/100);
+          bannerTime.textContent = timeStr;
+
+          if (type === 'pothole') {
+            bannerIcon.textContent = 'warning';
+            bannerIcon.className = 'material-symbols-outlined text-[#EF4444] text-[22px] shrink-0';
+            bannerTitle.textContent = 'Spike Detected: POTHOLE (Class 1)';
+            bannerSub.textContent = 'Z-Impact: 2.68g RMS • Speed Norm: 0.43m depth';
+          } else if (type === 'bump') {
+            bannerIcon.textContent = 'info';
+            bannerIcon.className = 'material-symbols-outlined text-[#F59E0B] text-[22px] shrink-0';
+            bannerTitle.textContent = 'Swell Identified: SPEED BREAKER';
+            bannerSub.textContent = 'RMS Envelope: 1.84g • Confidence: 94.8%';
+          } else if (type === 'plate') {
+            bannerIcon.textContent = 'bolt';
+            bannerIcon.className = 'material-symbols-outlined text-[#3B82F6] text-[22px] shrink-0';
+            bannerTitle.textContent = 'Vibration Signature: METAL PLATE';
+            bannerSub.textContent = 'High Freq Hash: 142Hz ringing • Class 3';
+          } else {
+            bannerIcon.textContent = 'check_circle';
+            bannerIcon.className = 'material-symbols-outlined text-[#10B981] text-[22px] shrink-0';
+            bannerTitle.textContent = 'Model Idle: Baseline Noise';
+            bannerSub.textContent = 'Confidence: 99.4% • Flat Road';
+          }
+        }
+
+        document.getElementById('btn-sim-pothole')?.addEventListener('click', () => triggerSim('pothole'));
+        document.getElementById('btn-sim-bump')?.addEventListener('click', () => triggerSim('bump'));
+        document.getElementById('btn-sim-plate')?.addEventListener('click', () => triggerSim('plate'));
+        document.getElementById('btn-sim-flat')?.addEventListener('click', () => triggerSim('flat'));
+
+        function showToast(msg, icon) {
+          const toast = document.getElementById('toast-msg');
+          const text = document.getElementById('toast-text');
+          const iconEl = document.getElementById('toast-icon');
+          if (!toast) return;
+          if (text) text.textContent = msg;
+          if (iconEl && icon) iconEl.textContent = icon;
+          toast.style.opacity = '1';
+          toast.style.pointerEvents = 'auto';
+          setTimeout(() => {
+            toast.style.opacity = '0';
+            toast.style.pointerEvents = 'none';
+          }, 2500);
+        }
+
+        document.getElementById('btn-save-profile')?.addEventListener('click', () => {
+          showToast('Threshold ' + currentThreshold.toFixed(2) + 'g written to hardware EEPROM.', 'verified');
+        });
+
+        document.getElementById('btn-run-diag')?.addEventListener('click', () => {
+          showToast('Self-Test: 3-Axis Accelerometer, DSP & TFLite PASS (14ms)', 'fact_check');
+          triggerSim('pothole');
+        });
+
+        document.getElementById('btn-reset-default')?.addEventListener('click', () => {
+          if (sliderRms) {
+            sliderRms.value = "2.0";
+            sliderRms.dispatchEvent(new Event('input'));
+          }
+          if (sliderSpeed) {
+            sliderSpeed.value = "5";
+            sliderSpeed.dispatchEvent(new Event('input'));
+          }
+          showToast('Parameters restored to factory standard (2.0g trigger).', 'restart_alt');
+        });
+
+        function renderLoop() {
+          let nextRms = 0.25 + (Math.random() * 0.06);
+          let nextZ = 0.19 + (Math.random() * 0.05);
+
+          if (activeSimulation) {
+            simStep++;
+            if (activeSimulation === 'pothole') {
+              if (simStep === 3) { nextRms = 2.65; nextZ = -1.1; }
+              else if (simStep === 4) { nextRms = 2.45; nextZ = 1.9; }
+              else if (simStep === 5) { nextRms = 1.20; nextZ = -0.4; }
+              else if (simStep > 12) { activeSimulation = null; }
+            } else if (activeSimulation === 'bump') {
+              if (simStep <= 8) {
+                const rad = (simStep / 8) * Math.PI;
+                nextRms = 0.3 + Math.sin(rad) * 1.55;
+                nextZ = 0.2 + Math.sin(rad) * 1.35;
+              } else {
+                activeSimulation = null;
+              }
+            } else if (activeSimulation === 'plate') {
+              if (simStep <= 14) {
+                nextRms = 1.45 + (Math.sin(simStep * 2.8) * 0.7);
+                nextZ = (Math.cos(simStep * 3.1) * 0.9);
+              } else {
+                activeSimulation = null;
+              }
+            } else if (activeSimulation === 'flat') {
+              nextRms = 0.12 + (Math.random() * 0.05);
+              nextZ = 0.10;
+              if (simStep > 10) activeSimulation = null;
+            }
+          }
+
+          waveformData.shift();
+          waveformData.push(nextRms);
+          zData.shift();
+          zData.push(nextZ);
+
+          if (nextRms > currentPeak) {
+            currentPeak = nextRms;
+          } else {
+            currentPeak = Math.max(0.30, currentPeak * 0.985);
+          }
+
+          if (rmsValEl) rmsValEl.textContent = nextRms.toFixed(2) + 'g';
+          if (peakValEl) peakValEl.textContent = currentPeak.toFixed(2) + 'g';
+
+          const w = canvas.width;
+          const h = canvas.height;
+          ctx.clearRect(0, 0, w, h);
+
+          const centerY = h * 0.8;
+
+          // Draw Z trace (Sky Blue)
+          ctx.beginPath();
+          ctx.strokeStyle = '#38BDF8';
+          ctx.lineWidth = 1.7 * (window.devicePixelRatio || 1);
+          for (let i = 0; i < zData.length; i++) {
+            const x = (i / (zData.length - 1)) * w;
+            const val = zData[i];
+            const y = centerY - (val * (h * 0.24));
+            if (i === 0) ctx.moveTo(x, y);
+            else ctx.lineTo(x, y);
+          }
+          ctx.stroke();
+
+          // Draw RMS trace (Warm Amber)
+          ctx.beginPath();
+          ctx.strokeStyle = '#FBBF24';
+          ctx.lineWidth = 2.4 * (window.devicePixelRatio || 1);
+          for (let i = 0; i < waveformData.length; i++) {
+            const x = (i / (waveformData.length - 1)) * w;
+            const val = waveformData[i];
+            const y = centerY - (val * (h * 0.24));
+            if (i === 0) ctx.moveTo(x, y);
+            else ctx.lineTo(x, y);
+          }
+          ctx.stroke();
+
+          // Dot at head
+          const lastX = w;
+          const lastY = centerY - (nextRms * (h * 0.24));
+          ctx.fillStyle = nextRms >= currentThreshold ? '#EF4444' : '#FBBF24';
+          ctx.beginPath();
+          ctx.arc(lastX - 2, lastY, 4 * (window.devicePixelRatio || 1), 0, Math.PI * 2);
+          ctx.fill();
+
+          requestAnimationFrame(renderLoop);
+        }
+
+        renderLoop();
+      })();
+    </script>
+</main>
+<!-- Bottom Clay Navigation Bar -->
+<nav class="fixed bottom-0 w-full z-50 pb-safe bg-[#EEF2F7]/95 backdrop-blur-xl shadow-[0_-8px_24px_rgba(160,175,195,0.35)]" data-active-classes="text-[#FF6F61]">
+<div class="flex items-center justify-around h-16 px-2">
+<!-- HUD -->
+<a class="flex flex-col items-center justify-center gap-1 min-w-[56px] h-12 rounded-2xl text-[#64748B] hover:text-[#1E293B] active:scale-95 transition-all" data-path="telemetry" href="#">
+<span class="material-symbols-outlined text-[22px]">speed</span>
+<span class="text-[10px] font-bold tracking-tight">HUD</span>
+</a>
+<!-- Map -->
+<a class="flex flex-col items-center justify-center gap-1 min-w-[56px] h-12 rounded-2xl text-[#64748B] hover:text-[#1E293B] active:scale-95 transition-all" data-path="hazard-map" href="#">
+<span class="material-symbols-outlined text-[22px]">explore</span>
+<span class="text-[10px] font-bold tracking-tight">Map</span>
+</a>
+<!-- Report -->
+<a class="flex flex-col items-center justify-center gap-1 min-w-[56px] h-12 rounded-2xl text-[#64748B] hover:text-[#1E293B] active:scale-95 transition-all" data-path="report" href="#">
+<span class="material-symbols-outlined text-[22px]">photo_camera</span>
+<span class="text-[10px] font-bold tracking-tight">Report</span>
+</a>
+<!-- Sensor (Active Pill) -->
+<a aria-current="page" class="flex flex-col items-center justify-center gap-1 min-w-[58px] h-12 rounded-2xl bg-[#EEF2F7] clay-pill text-[#FF6F61] transition-all" data-path="calibrate" href="#">
+<span class="material-symbols-outlined text-[22px]">tune</span>
+<span class="text-[10px] font-extrabold tracking-tight">Sensor</span>
+</a>
+<!-- Civic -->
+<a class="flex flex-col items-center justify-center gap-1 min-w-[56px] h-12 rounded-2xl text-[#64748B] hover:text-[#1E293B] active:scale-95 transition-all" data-path="admin-&amp;-civic" href="#">
+<span class="material-symbols-outlined text-[22px]">policy</span>
+<span class="text-[10px] font-bold tracking-tight">Civic</span>
+</a>
+</div>
+</nav>
+</body></html>

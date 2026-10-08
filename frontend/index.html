@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <title>RoadBump - Telemetry & Hazard Network</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet" />
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            fontFamily: {
+              sans: ['Poppins', 'sans-serif'],
+              mono: ['"JetBrains Mono"', 'monospace'],
+              display: ['Outfit', 'sans-serif'],
+            },
+            colors: {
+              clay: {
+                bg: '#EEF2F7',
+                surface: '#F6F9FD',
+                card: '#FFFFFF',
+                cardAlt: '#E8EFF7',
+                dark: '#243248',
+                subtle: '#6B7E99',
+                muted: '#718096',
+                border: '#E2E8F0',
+                coral: '#FF6B6B',
+                coralSoft: '#FFEAE9',
+                amber: '#FF9F1C',
+                amberSoft: '#FFF4E5',
+                teal: '#10B981',
+                tealSoft: '#E6F9F3',
+                blue: '#4D7CFE',
+                blueSoft: '#EBF1FF',
+                purple: '#845EF7',
+                purpleSoft: '#F2ECFE',
+                accent: '#4F46E5',
+              }
+            }
+          }
+        }
+      }
+    </script>
+  </head>
+  <body class="bg-[#EEF2F7] text-[#243248] min-h-screen">
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>

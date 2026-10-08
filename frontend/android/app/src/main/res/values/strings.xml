@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">RoadBump</string>
+    <string name="title_activity_main">RoadBump</string>
+    <string name="package_name">com.roadbump.app</string>
+    <string name="custom_url_scheme">com.roadbump.app</string>
+</resources>

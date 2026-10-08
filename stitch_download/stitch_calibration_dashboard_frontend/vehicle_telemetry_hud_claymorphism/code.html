@@ -1,0 +1,532 @@
+<!DOCTYPE html>
+
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" name="viewport"/>
+<meta content="mobile_tab" name="shell-type"/>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&amp;family=JetBrains+Mono:wght@500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Poppins', 'sans-serif'],
+            mono: ['"JetBrains Mono"', 'monospace']
+          },
+          colors: {
+            clay: {
+              bg: '#EEF3F8',
+              card: '#F6F9FD',
+              cardAlt: '#E8EFF7',
+              dark: '#243248',
+              subtle: '#6B7E99',
+              coral: '#FF6B6B',
+              coralSoft: '#FFEAE9',
+              amber: '#FF9F1C',
+              amberSoft: '#FFF4E5',
+              teal: '#10B981',
+              tealSoft: '#E6F9F3',
+              blue: '#4D7CFE',
+              blueSoft: '#EBF1FF',
+              purple: '#845EF7',
+              purpleSoft: '#F2ECFE'
+            }
+          },
+          borderRadius: {
+            'clay-sm': '16px',
+            'clay': '24px',
+            'clay-lg': '32px',
+            'clay-pill': '9999px'
+          }
+        }
+      }
+    }
+  </script>
+<style>
+    body {
+      background-color: #EEF3F8;
+      font-family: 'Poppins', sans-serif;
+      min-height: max(884px, 100dvh);
+      overscroll-behavior: none;
+      -webkit-font-smoothing: antialiased;
+    }
+    .pb-safe { padding-bottom: env(safe-area-inset-bottom, 16px); }
+    .pt-safe { padding-top: env(safe-area-inset-top, 16px); }
+    ::-webkit-scrollbar { display: none; }
+
+    /* Claymorphism 3D tactile utilities */
+    .clay-surface {
+      background: #F6F9FD;
+      box-shadow: 
+        10px 12px 24px -2px rgba(160, 178, 204, 0.45),
+        -8px -8px 20px 0px rgba(255, 255, 255, 0.95),
+        inset 1.5px 1.5px 3px rgba(255, 255, 255, 0.9),
+        inset -2px -2px 5px rgba(175, 193, 219, 0.25);
+    }
+
+    .clay-surface-sunken {
+      background: #E8EEF6;
+      box-shadow: 
+        inset 4px 4px 8px rgba(162, 180, 204, 0.45),
+        inset -4px -4px 8px rgba(255, 255, 255, 0.85);
+    }
+
+    .clay-surface-floating {
+      background: rgba(246, 249, 253, 0.88);
+      backdrop-filter: blur(16px);
+      box-shadow: 
+        0 14px 28px rgba(155, 175, 201, 0.35),
+        0 -2px 10px rgba(255, 255, 255, 0.9),
+        inset 1px 1px 2px rgba(255, 255, 255, 0.8),
+        inset -1px -1px 3px rgba(170, 188, 214, 0.2);
+    }
+
+    /* Clay Buttons */
+    .clay-btn-coral {
+      background: linear-gradient(135deg, #FF7B7B 0%, #FF5A5A 100%);
+      box-shadow: 
+        6px 8px 16px rgba(255, 107, 107, 0.38),
+        -4px -4px 10px rgba(255, 255, 255, 0.8),
+        inset 2px 2px 4px rgba(255, 255, 255, 0.5),
+        inset -2px -2px 4px rgba(200, 30, 30, 0.3);
+    }
+
+    .clay-btn-coral:active {
+      transform: scale(0.97);
+      box-shadow: 
+        inset 3px 3px 6px rgba(180, 20, 20, 0.4),
+        inset -2px -2px 4px rgba(255, 255, 255, 0.3);
+    }
+
+    .clay-btn-neutral {
+      background: #EDF2F8;
+      box-shadow: 
+        5px 6px 14px rgba(160, 178, 204, 0.4),
+        -4px -4px 10px rgba(255, 255, 255, 0.9),
+        inset 1.5px 1.5px 3px rgba(255, 255, 255, 0.8),
+        inset -1.5px -1.5px 3px rgba(160, 178, 204, 0.2);
+    }
+
+    .clay-btn-neutral:active {
+      transform: scale(0.97);
+      box-shadow: 
+        inset 3px 3px 6px rgba(160, 178, 204, 0.45),
+        inset -2px -2px 4px rgba(255, 255, 255, 0.7);
+    }
+
+    .clay-pill-amber {
+      background: linear-gradient(135deg, #FFB03A 0%, #FF9000 100%);
+      box-shadow: 
+        4px 5px 12px rgba(255, 160, 28, 0.35),
+        inset 1.5px 1.5px 2px rgba(255, 255, 255, 0.6),
+        inset -1.5px -1.5px 2px rgba(200, 110, 0, 0.3);
+    }
+
+    .clay-pill-teal {
+      background: linear-gradient(135deg, #27D79C 0%, #0CA678 100%);
+      box-shadow: 
+        4px 5px 12px rgba(16, 185, 129, 0.35),
+        inset 1.5px 1.5px 2px rgba(255, 255, 255, 0.6),
+        inset -1.5px -1.5px 2px rgba(5, 120, 80, 0.3);
+    }
+
+    .clay-pill-blue {
+      background: linear-gradient(135deg, #618DFF 0%, #3D6EEB 100%);
+      box-shadow: 
+        4px 5px 12px rgba(77, 124, 254, 0.35),
+        inset 1.5px 1.5px 2px rgba(255, 255, 255, 0.6),
+        inset -1.5px -1.5px 2px rgba(30, 70, 180, 0.3);
+    }
+
+    .clay-pill-purple {
+      background: linear-gradient(135deg, #9775FA 0%, #7048E8 100%);
+      box-shadow: 
+        4px 5px 12px rgba(132, 94, 247, 0.35),
+        inset 1.5px 1.5px 2px rgba(255, 255, 255, 0.6),
+        inset -1.5px -1.5px 2px rgba(80, 40, 180, 0.3);
+    }
+  </style>
+</head>
+<body class="bg-clay-bg text-clay-dark flex flex-col min-h-screen antialiased selection:bg-clay-coral selection:text-white">
+<!-- Floating Claymorphic Top App Bar -->
+<header class="fixed top-0 left-0 right-0 z-50 pt-safe px-4 pb-2">
+<div class="clay-surface-floating rounded-[26px] h-16 px-4 flex items-center justify-between border border-white/60">
+<!-- Logo & System Tag -->
+<div class="flex items-center gap-3 min-w-0">
+<div class="w-10 h-10 rounded-2xl clay-btn-neutral flex items-center justify-center p-1.5 shrink-0">
+<img alt="RoadBump Logo" class="h-full w-full object-contain" src="https://lh3.googleusercontent.com/aida/AEtjO1WrRt-gQHeMBl6nz1UZFvKvnj0RXHNJGaNY0pgDcCpZUWjKN9dpfrG-GFsqqOWaHDMo8-NspjXL9Y48fb4gba35rD9JAABqXDxsU1liJSr9Mr450pCT-VMfRz2s0seM7_nLYA1FZTp-4EGiT6kLQ4SEGZTruQ2dTw09AcWe8rVjZ1YZMBzp2ECs8dSro-fg_rwY2IwWXOhuMY2-knvVErRUKxIFAMjaVfmPUqBZgD-z5g"/>
+</div>
+<div class="flex flex-col min-w-0">
+<div class="flex items-center gap-2">
+<span class="font-bold text-lg text-clay-dark tracking-tight leading-none">RoadBump</span>
+<span class="clay-pill-amber text-[10px] font-bold text-white px-2 py-0.5 rounded-full uppercase tracking-wider">HUD</span>
+</div>
+<div class="flex items-center gap-1.5 mt-1">
+<span class="relative flex h-2 w-2">
+<span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-clay-teal opacity-75"></span>
+<span class="relative inline-flex rounded-full h-2 w-2 bg-clay-teal"></span>
+</span>
+<span class="text-[11px] font-semibold text-clay-subtle tracking-wide font-mono">100Hz • ACTIVE</span>
+</div>
+</div>
+</div>
+<!-- Quick Action Pills -->
+<div class="flex items-center gap-2 shrink-0">
+<button aria-label="Toggle Night Flash Mode" class="w-10 h-10 clay-btn-neutral rounded-2xl flex items-center justify-center text-clay-subtle hover:text-clay-dark transition-colors" type="button">
+<span class="material-symbols-outlined text-[20px] text-clay-amber">flash_on</span>
+</button>
+<button aria-label="Emergency Hazard Alert" class="w-10 h-10 clay-btn-neutral rounded-2xl flex items-center justify-center text-clay-coral relative transition-transform active:scale-95" type="button">
+<span class="material-symbols-outlined text-[20px]">notifications_active</span>
+<span class="absolute top-2 right-2 w-2 h-2 rounded-full bg-clay-coral animate-ping"></span>
+<span class="absolute top-2 right-2 w-2 h-2 rounded-full bg-clay-coral"></span>
+</button>
+<div class="w-10 h-10 rounded-2xl clay-pill-coral flex items-center justify-center text-white font-bold ml-0.5 shadow-md">
+<span class="material-symbols-outlined text-[20px]">person</span>
+</div>
+</div>
+</div>
+</header>
+<!-- Main Content Scrollable Area -->
+<main class="flex flex-col relative w-full pt-24 pb-28 px-4 gap-4 max-w-md mx-auto">
+<!-- Subheader Tactile Status Pill -->
+<div class="clay-surface rounded-2xl px-4 py-2.5 flex items-center justify-between border border-white/60">
+<div class="flex items-center gap-2 min-w-0">
+<div class="w-2.5 h-2.5 rounded-full bg-clay-blue animate-pulse shrink-0"></div>
+<span class="text-[11px] font-bold text-clay-dark tracking-wide uppercase truncate">VEHICLE MODE ENGAGED</span>
+<span class="text-clay-subtle text-xs">•</span>
+<span class="text-[11px] font-medium text-clay-subtle tracking-wide truncate">BACKGROUND RUNNING</span>
+</div>
+<div class="flex items-center gap-1.5 clay-surface-sunken px-2.5 py-1 rounded-full shrink-0">
+<span class="material-symbols-outlined text-[14px] text-clay-teal font-bold">satellite_alt</span>
+<span class="text-[11px] font-bold text-clay-teal font-mono">GPS LOCK</span>
+</div>
+</div>
+<!-- Proximity Radar Intercept Clay Card -->
+<div class="clay-surface rounded-[28px] p-5 relative overflow-hidden border border-white/70 flex flex-col gap-3">
+<!-- Glow bubble ambient decoration -->
+<div class="absolute -right-8 -top-8 w-32 h-32 rounded-full bg-clay-coral/10 blur-2xl pointer-events-none"></div>
+<div class="flex items-center justify-between relative z-10">
+<div class="flex items-center gap-2">
+<div class="w-8 h-8 rounded-xl bg-clay-coralSoft flex items-center justify-center shadow-inner">
+<span class="material-symbols-outlined text-clay-coral text-[20px] animate-bounce">warning</span>
+</div>
+<span class="text-[12px] font-bold text-clay-coral tracking-wider uppercase">PROXIMITY RADAR INTERCEPT</span>
+</div>
+<div class="clay-pill-coral text-white px-3 py-1 rounded-full flex items-center gap-1.5 text-xs font-bold font-mono">
+<span class="material-symbols-outlined text-[14px]">timer</span>
+<span id="eta-countdown">ETA 4s</span>
+</div>
+</div>
+<div class="flex flex-col z-10">
+<h3 class="text-lg font-bold text-clay-dark tracking-tight leading-tight">Approaching Hazard in 180m</h3>
+<p class="text-xs font-medium text-clay-subtle mt-1">Verified Pothole (Grade-3) • Inner Left Lane</p>
+</div>
+<!-- Tactile Inset Progress Bar -->
+<div class="w-full clay-surface-sunken h-3.5 rounded-full p-0.5 flex items-center relative overflow-hidden">
+<div class="h-full clay-pill-coral rounded-full transition-all duration-700 ease-out" id="radar-progress" style="width: 72%;"></div>
+</div>
+<div class="flex items-center justify-between text-xs font-semibold text-clay-subtle pt-0.5">
+<span class="font-mono text-[11px] tracking-wider text-clay-dark/70">180M RANGE</span>
+<div class="flex items-center gap-1.5 text-clay-blue">
+<span class="material-symbols-outlined text-[16px]">nightlight</span>
+<span class="text-[11px] font-semibold">Flash Beam Armed</span>
+</div>
+</div>
+</div>
+<!-- 3-Axis Accelerometry / Z-Peak Telemetry Clay Card -->
+<div class="clay-surface rounded-[28px] p-5 flex flex-col gap-4 border border-white/70 relative">
+<div class="flex items-center justify-between">
+<div>
+<span class="text-[11px] font-bold text-clay-subtle tracking-wider uppercase">3-AXIS ACCELEROMETRY</span>
+<h2 class="text-lg font-bold text-clay-dark tracking-tight leading-tight">Z-Peak Telemetry</h2>
+</div>
+<div class="clay-surface-sunken px-3 py-1 rounded-full flex items-center gap-1.5">
+<span class="material-symbols-outlined text-[15px] text-clay-amber">sensors</span>
+<span class="text-[11px] font-bold text-clay-amber font-mono">100 Hz SYNC</span>
+</div>
+</div>
+<!-- Claymorphic Arc Dial Visualizer Container -->
+<div class="clay-surface-sunken rounded-2xl p-4 flex flex-col items-center justify-center relative overflow-hidden">
+<svg class="w-64 h-36 overflow-visible" fill="none" viewbox="0 0 240 135">
+<!-- Outer Track Shadow Arc -->
+<path d="M 24 120 A 96 96 0 0 1 216 120" stroke="#CBD8E6" stroke-linecap="round" stroke-width="16"></path>
+<!-- Peak Excursion High Warning Band -->
+<path d="M 176 40 A 96 96 0 0 1 216 120" stroke="#FFD8D8" stroke-linecap="round" stroke-width="16"></path>
+<!-- Active G-Force Value Arc with Gradient -->
+<defs>
+<lineargradient id="gArcGrad" x1="0%" x2="100%" y1="100%" y2="0%">
+<stop offset="0%" stop-color="#4D7CFE"></stop>
+<stop offset="60%" stop-color="#FF9F1C"></stop>
+<stop offset="100%" stop-color="#FF6B6B"></stop>
+</lineargradient>
+</defs>
+<path class="transition-all duration-300" d="M 24 120 A 96 96 0 0 1 106 28" id="g-arc" stroke="url(#gArcGrad)" stroke-linecap="round" stroke-width="16"></path>
+<!-- Pointer Needle Nub -->
+<circle cx="106" cy="28" fill="#FFFFFF" filter="drop-shadow(0px 3px 6px rgba(0,0,0,0.2))" r="8" stroke="#FF9F1C" stroke-width="3"></circle>
+<circle cx="192" cy="52" fill="#FF6B6B" r="5"></circle>
+</svg>
+<!-- Center Inset Readout -->
+<div class="flex flex-col items-center -mt-16 text-center z-10">
+<div class="flex items-baseline gap-1">
+<span class="text-4xl font-extrabold text-clay-dark tracking-tight font-mono" id="g-val">0.34</span>
+<span class="text-xl font-bold text-clay-coral font-mono">G</span>
+</div>
+<div class="flex items-center gap-2 mt-2">
+<span class="clay-pill-amber text-[10px] text-white px-2.5 py-0.5 rounded-full font-bold font-mono tracking-wider">
+              PEAK: 2.85 G
+            </span>
+<span class="clay-surface px-2 py-0.5 rounded-full text-[10px] font-semibold text-clay-subtle border border-white">
+              ±0.02G NOISE
+            </span>
+</div>
+</div>
+</div>
+<!-- Secondary Telemetry Shelf -->
+<div class="grid grid-cols-2 gap-3">
+<!-- Speed Gauge Sub-card -->
+<div class="clay-surface-sunken p-3.5 rounded-2xl flex flex-col justify-between">
+<div class="flex items-center justify-between text-clay-subtle">
+<span class="text-[10px] font-bold tracking-wider uppercase">SPEED (OBD/GPS)</span>
+<span class="material-symbols-outlined text-[16px] text-clay-blue">speed</span>
+</div>
+<div class="flex items-baseline gap-1 my-1">
+<span class="text-2xl font-extrabold text-clay-dark font-mono">42</span>
+<span class="text-xs font-bold text-clay-subtle">km/h</span>
+</div>
+<div class="flex items-center gap-1.5 text-clay-teal">
+<span class="w-2 h-2 rounded-full bg-clay-teal"></span>
+<span class="text-[10px] font-bold tracking-wider uppercase">STEADY CRUISE</span>
+</div>
+</div>
+<!-- GPS Precision Sub-card -->
+<div class="clay-surface-sunken p-3.5 rounded-2xl flex flex-col justify-between">
+<div class="flex items-center justify-between text-clay-subtle">
+<span class="text-[10px] font-bold tracking-wider uppercase">GPS PRECISION</span>
+<span class="material-symbols-outlined text-[16px] text-clay-coral">my_location</span>
+</div>
+<div class="flex flex-col my-1 gap-0.5">
+<div class="flex items-center justify-between text-xs">
+<span class="text-[10px] font-semibold text-clay-subtle">ACCURACY</span>
+<span class="text-xs font-bold text-clay-coral font-mono">±2.1m</span>
+</div>
+<div class="flex items-center justify-between text-xs">
+<span class="text-[10px] font-semibold text-clay-subtle">HDOP REF</span>
+<span class="text-xs font-bold text-clay-dark font-mono">0.8m</span>
+</div>
+</div>
+<div class="w-full bg-clay-bg h-2 rounded-full overflow-hidden p-0.5 shadow-inner">
+<div class="h-full clay-pill-teal rounded-full" style="width: 88%;"></div>
+</div>
+</div>
+</div>
+</div>
+<!-- Real-Time Event Stream & Clay Action Strip -->
+<div class="clay-surface rounded-[28px] p-5 flex flex-col gap-3.5 border border-white/70">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-clay-blue text-[20px]">graphic_eq</span>
+<span class="text-[11px] font-bold text-clay-blue tracking-wider uppercase">EVENT STREAM</span>
+</div>
+<span class="text-[11px] font-semibold text-clay-subtle font-mono">140m AGO</span>
+</div>
+<!-- Detected Pothole Highlight -->
+<div class="clay-surface-sunken rounded-2xl p-3.5 flex flex-col gap-2.5">
+<div class="flex items-start justify-between gap-2">
+<div class="flex items-center gap-3 min-w-0">
+<div class="w-11 h-11 rounded-2xl clay-btn-coral flex items-center justify-center shrink-0 text-white">
+<span class="material-symbols-outlined text-[24px]">broken_image</span>
+</div>
+<div class="flex flex-col min-w-0">
+<h4 class="font-bold text-sm text-clay-dark truncate">Moderate Pothole</h4>
+<p class="text-xs text-clay-subtle truncate mt-0.5">Outer Ring Rd (KM 14.2) • 2.4G Z-Hit</p>
+</div>
+</div>
+<div class="flex flex-col items-end shrink-0">
+<span class="text-[9px] font-bold text-clay-blue uppercase tracking-wider">AI CONFIDENCE</span>
+<span class="text-base font-extrabold text-clay-blue font-mono">94.2%</span>
+<span class="text-[10px] font-semibold text-clay-subtle">3/3 WINDOWS</span>
+</div>
+</div>
+<!-- Audio & Haptic Feedback Info Bar -->
+<div class="clay-surface rounded-xl p-2.5 flex items-center justify-between border border-white/80">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-[18px] text-clay-purple">vibration</span>
+<span class="text-[11px] font-semibold text-clay-dark">BEEP TONE + 3x PULSE FIRED</span>
+</div>
+<span class="text-[10px] font-bold clay-pill-teal text-white px-2 py-0.5 rounded-full uppercase tracking-wider">HAPTIC OK</span>
+</div>
+</div>
+<!-- Tactile Clay Quick Action Buttons -->
+<div class="grid grid-cols-3 gap-2.5 mt-1">
+<button class="h-12 clay-btn-coral text-white rounded-2xl flex items-center justify-center gap-1.5 text-xs font-bold transition-transform active:scale-95" id="btn-confirm" type="button">
+<span class="material-symbols-outlined text-[18px]">thumb_up</span>
+<span>Confirm</span>
+</button>
+<button class="h-12 clay-btn-neutral text-clay-subtle hover:text-clay-coral rounded-2xl flex items-center justify-center gap-1.5 text-xs font-bold transition-all active:scale-95" id="btn-dismiss" type="button">
+<span class="material-symbols-outlined text-[18px] text-clay-coral">close</span>
+<span>Dismiss</span>
+</button>
+<button class="h-12 clay-btn-neutral text-clay-dark rounded-2xl flex items-center justify-center gap-1.5 text-xs font-bold transition-all active:scale-95" id="btn-voice" type="button">
+<span class="material-symbols-outlined text-[18px] text-clay-blue">mic</span>
+<span>Voice</span>
+</button>
+</div>
+</div>
+<!-- Live Seismic Profile Clay Card -->
+<div class="clay-surface rounded-[28px] p-5 flex flex-col gap-2.5 border border-white/70">
+<div class="flex items-center justify-between">
+<span class="text-[11px] font-bold text-clay-subtle tracking-wider uppercase">LIVE Z-AXIS SEISMIC PROFILE</span>
+<span class="text-[11px] font-bold text-clay-coral font-mono">ROLL: 0.2° | PITCH: -1.1°</span>
+</div>
+<!-- Waveform Canvas in Sunken Clay Container -->
+<div class="clay-surface-sunken h-20 rounded-2xl p-2 relative flex items-center overflow-hidden">
+<svg class="w-full h-full" preserveaspectratio="none" viewbox="0 0 320 60">
+<!-- Guide baseline -->
+<line stroke="#CBD8E6" stroke-dasharray="4 3" x1="0" x2="320" y1="30" y2="30"></line>
+<!-- Seismic continuous wave with vibrant clay gradient -->
+<defs>
+<lineargradient id="waveGrad" x1="0%" x2="100%" y1="0%" y2="0%">
+<stop offset="0%" stop-color="#4D7CFE"></stop>
+<stop offset="60%" stop-color="#FF9F1C"></stop>
+<stop offset="75%" stop-color="#FF6B6B"></stop>
+<stop offset="100%" stop-color="#4D7CFE"></stop>
+</lineargradient>
+</defs>
+<path d="M 0 30 Q 20 28, 40 31 T 80 29 T 120 32 T 160 30 T 200 28 Q 215 8, 225 54 Q 235 10, 245 38 T 270 31 T 320 30" fill="none" stroke="url(#waveGrad)" stroke-linecap="round" stroke-width="3"></path>
+<!-- Hit Peak Bubble -->
+<circle cx="225" cy="54" fill="#FF6B6B" filter="drop-shadow(0 2px 4px rgba(255,107,107,0.5))" r="5" stroke="#FFFFFF" stroke-width="2"></circle>
+</svg>
+<span class="absolute bottom-1.5 right-3 text-[10px] font-bold text-clay-subtle font-mono">TIME WINDOW: 4.0s</span>
+</div>
+</div>
+<!-- Mission Trip Metrics Clay Bento Card -->
+<div class="clay-surface rounded-[28px] p-5 flex flex-col gap-3.5 border border-white/70">
+<div class="flex items-center justify-between">
+<span class="text-[11px] font-bold text-clay-subtle tracking-wider uppercase">MISSION TRIP METRICS</span>
+<div class="flex items-center gap-1.5 text-clay-amber font-mono font-bold text-[11px]">
+<span class="material-symbols-outlined text-[15px]">bolt</span>
+<span>DRAIN 3.8% / HR</span>
+</div>
+</div>
+<!-- Bento Stat Blocks -->
+<div class="grid grid-cols-2 gap-3">
+<div class="clay-surface-sunken p-3.5 rounded-2xl flex flex-col">
+<span class="text-[10px] font-bold text-clay-subtle uppercase tracking-wider">DISTANCE LOGGED</span>
+<div class="flex items-baseline gap-1 mt-1">
+<span class="text-2xl font-extrabold text-clay-dark font-mono">18.4</span>
+<span class="text-xs font-bold text-clay-subtle">KM</span>
+</div>
+</div>
+<div class="clay-surface-sunken p-3.5 rounded-2xl flex flex-col">
+<span class="text-[10px] font-bold text-clay-subtle uppercase tracking-wider">HAZARDS RECORDED</span>
+<div class="flex items-baseline gap-1 mt-1">
+<span class="text-2xl font-extrabold text-clay-coral font-mono">12</span>
+<span class="text-xs font-bold text-clay-subtle">TOTAL</span>
+</div>
+</div>
+</div>
+<!-- Tactile Hazard Categorized Pills -->
+<div class="clay-surface-sunken p-2.5 rounded-2xl flex items-center justify-between gap-1 text-xs">
+<div class="flex items-center gap-1.5 px-2 py-1 rounded-xl clay-surface">
+<span class="w-2.5 h-2.5 rounded-full bg-clay-coral"></span>
+<span class="text-[11px] font-bold text-clay-dark">7 Potholes</span>
+</div>
+<div class="flex items-center gap-1.5 px-2 py-1 rounded-xl clay-surface">
+<span class="w-2.5 h-2.5 rounded-full bg-clay-amber"></span>
+<span class="text-[11px] font-bold text-clay-dark">4 Breakers</span>
+</div>
+<div class="flex items-center gap-1.5 px-2 py-1 rounded-xl clay-surface">
+<span class="w-2.5 h-2.5 rounded-full bg-clay-blue"></span>
+<span class="text-[11px] font-bold text-clay-dark">1 Plate</span>
+</div>
+</div>
+<!-- SQLite DB Sync Action Tray -->
+<div class="clay-surface-sunken rounded-2xl p-3 flex items-center justify-between gap-3">
+<div class="flex items-center gap-2.5 min-w-0">
+<div class="w-9 h-9 rounded-xl clay-btn-neutral flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined text-[20px] text-clay-blue">cloud_sync</span>
+</div>
+<div class="flex flex-col min-w-0">
+<span class="text-xs font-bold text-clay-dark truncate">Room DB: 2 Pending</span>
+<span class="text-[10px] font-medium text-clay-subtle truncate">Offline Synced 4m ago</span>
+</div>
+</div>
+<button class="clay-btn-neutral text-clay-blue font-bold text-[11px] px-3.5 py-2 rounded-xl transition-all active:scale-95 uppercase tracking-wider shrink-0" id="btn-sync" type="button">
+          Sync Now
+        </button>
+</div>
+</div>
+</main>
+<!-- Floating Claymorphic Bottom Tab Navigation Bar -->
+<nav class="fixed bottom-3 left-4 right-4 z-50 pb-safe max-w-md mx-auto">
+<div class="clay-surface-floating rounded-[30px] h-16 px-2 flex items-center justify-around border border-white/70 shadow-2xl">
+<!-- Active HUD tab -->
+<a aria-current="page" class="flex flex-col items-center justify-center min-w-[56px] h-12 rounded-2xl clay-btn-coral text-white transition-all transform active:scale-95" data-path="telemetry" href="#">
+<span class="material-symbols-outlined text-[20px]">speed</span>
+<span class="text-[10px] font-bold tracking-tight">HUD</span>
+</a>
+<!-- Other tabs with tactile hover/press states -->
+<a class="flex flex-col items-center justify-center min-w-[56px] h-12 rounded-2xl text-clay-subtle hover:text-clay-dark transition-all active:scale-95" data-path="hazard-map" href="#">
+<span class="material-symbols-outlined text-[20px]">explore</span>
+<span class="text-[10px] font-semibold tracking-tight">Map</span>
+</a>
+<a class="flex flex-col items-center justify-center min-w-[56px] h-12 rounded-2xl text-clay-subtle hover:text-clay-dark transition-all active:scale-95" data-path="report" href="#">
+<span class="material-symbols-outlined text-[20px]">photo_camera</span>
+<span class="text-[10px] font-semibold tracking-tight">Report</span>
+</a>
+<a class="flex flex-col items-center justify-center min-w-[56px] h-12 rounded-2xl text-clay-subtle hover:text-clay-dark transition-all active:scale-95" data-path="calibrate" href="#">
+<span class="material-symbols-outlined text-[20px]">tune</span>
+<span class="text-[10px] font-semibold tracking-tight">Sensor</span>
+</a>
+<a class="flex flex-col items-center justify-center min-w-[56px] h-12 rounded-2xl text-clay-subtle hover:text-clay-dark transition-all active:scale-95" data-path="admin-&amp;-civic" href="#">
+<span class="material-symbols-outlined text-[20px]">policy</span>
+<span class="text-[10px] font-semibold tracking-tight">Civic</span>
+</a>
+</div>
+</nav>
+<!-- Interactive JavaScript logic retained with smooth clay styling transitions -->
+<script>
+    const syncBtn = document.getElementById('btn-sync');
+    if (syncBtn) {
+      syncBtn.addEventListener('click', function() {
+        this.textContent = 'SYNCING...';
+        this.classList.add('opacity-70');
+        setTimeout(() => {
+          this.textContent = 'SYNCED!';
+          this.classList.remove('opacity-70');
+          this.classList.remove('text-clay-blue');
+          this.classList.add('text-clay-teal');
+        }, 1100);
+      });
+    }
+
+    const confirmBtn = document.getElementById('btn-confirm');
+    if (confirmBtn) {
+      confirmBtn.addEventListener('click', function() {
+        this.innerHTML = '<span class="material-symbols-outlined text-[18px]">check</span><span>Logged</span>';
+        this.className = 'h-12 clay-pill-teal text-white rounded-2xl flex items-center justify-center gap-1.5 text-xs font-bold transition-all';
+      });
+    }
+
+    let countdownSecs = 4;
+    const etaElem = document.getElementById('eta-countdown');
+    const radarProgress = document.getElementById('radar-progress');
+    if (etaElem && radarProgress) {
+      setInterval(() => {
+        if (countdownSecs > 1) {
+          countdownSecs -= 1;
+          etaElem.textContent = 'ETA ' + countdownSecs + 's';
+          radarProgress.style.width = (countdownSecs * 24) + '%';
+        } else {
+          countdownSecs = 5;
+          etaElem.textContent = 'ETA 5s';
+          radarProgress.style.width = '85%';
+        }
+      }, 1600);
+    }
+  </script>
+</body></html>

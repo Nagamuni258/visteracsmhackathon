@@ -1,0 +1,375 @@
+{
+  "screenshot": {
+    "name": "projects/12265267842118423872/screens/b7d5eafe2bc64d9983248a993d4ddb94/fileEntries/screenshot",
+    "downloadUrl": "https://lh3.googleusercontent.com/aida/AEtjO1UVfJcJRjyXIMqo74ks0WWGJ7ObCp-In6SDBMdRzROZkQq7Mre3RiyQEBsp9kpIXDTXLWUtoBTunelGFVAVubAK6tvRmUNZ0XhBXMtf1MpPfHckbuLwCX-Xzr6wL043hvJNQAyGvRCPxvyKTHDsEWjCXXA5MSdMZzEuS4L3qKJ9MpcwGj5KkPhcLb27sIlh2UtA5PmEiJLUjYKKXrOt2HEz0ikHWPYg46gXphVLbhmE"
+  },
+  "htmlCode": {
+    "name": "projects/12265267842118423872/screens/b7d5eafe2bc64d9983248a993d4ddb94/fileEntries/html",
+    "downloadUrl": "https://contribution.usercontent.google.com/download?c=CgthaWRhX2NvZGVmeBJyEgxzdGl0Y2hfZmlsZXMaYgosc3RpdGNoX2h0bWxfMDAwNjVkNTJiNzM1ZTY3YzA3YzRlNjQ4YWUxNjNmY2ESCxIHEPLR08G7EBgBkgEkCgpwcm9qZWN0X2lkEhZCFDEyMjY1MjY3ODQyMTE4NDIzODcy&filename=&opi=89354086",
+    "mimeType": "text/html"
+  },
+  "id": "b7d5eafe2bc64d9983248a993d4ddb94",
+  "generatedBy": "HatterAgent",
+  "width": "780",
+  "height": "2692",
+  "title": "Hazard Map & Alerts (Claymorphism)",
+  "prompt": "Convert this screen completely to Claymorphism design style with Poppins font typography.\nStyle requirements:\n- Font: Poppins font family for all text, numbers, and inputs.\n- Aesthetic: Claymorphism. Soft 3D inflated pill elements, clay cards with dual-directional lighting (top-left white highlight, bottom-right soft tinted shadow), inset bevel borders.\n- Background & palette: Soft light clay canvas (#EEF2F7), clay-styled search bar, colorful candy-clay filter chips (All Hazards, Verified, Critical).\n- Map treatment: Light, clean, high-clarity map styled to harmonize with the clay theme, featuring 3D clay marker pins (amber warning diamonds, red danger shields, emerald checkmark circles, floating action buttons with clay shadows).\n- Keep all content & features:\n  - Header: RoadBump branding, search pill for 'Koramangala 80ft Rd to Ring Rd' with clear button and GPS locate button.\n  - Filter pills: All Hazards (24), Verified (18), Critical.\n  - Interactive map region with route line, sweep radar pill, zoom/layer controls, and hazard clusters (+8, +4).\n  - Critical Hazard Alert Card (sliding sheet): 75m ~4.8 seconds ETA, Critical Red Severe Pothole, field cam thumbnail preview, velocity impact metrics, Confirm and Not There clay action buttons.\n  - Upcoming on Route section: Unmarked Speedbreaker (240m Verified) and Sunken Trench / Cable Work (890m 3 Flags).\n  - Bottom navigation bar in clay style with 'Map' active.",
+  "name": "projects/12265267842118423872/screens/b7d5eafe2bc64d9983248a993d4ddb94",
+  "theme": {
+    "colorMode": "LIGHT",
+    "font": "OUTFIT",
+    "roundness": "ROUND_FULL",
+    "customColor": "#ff6b6b",
+    "headlineFont": "OUTFIT",
+    "bodyFont": "OUTFIT",
+    "labelFont": "OUTFIT",
+    "namedColors": {
+      "surface_container_lowest": "#ffffff",
+      "on_error_container": "#93000a",
+      "error": "#ba1a1a",
+      "on_surface_variant": "#584140",
+      "inverse_surface": "#2b3136",
+      "tertiary": "#4950c7",
+      "surface_container": "#e8eef5",
+      "secondary": "#006a65",
+      "surface_container_high": "#e3e9f0",
+      "tertiary_fixed": "#e0e0ff",
+      "secondary_fixed_dim": "#5dd9d0",
+      "inverse_on_surface": "#ebf1f8",
+      "surface_variant": "#dde3ea",
+      "on_tertiary_fixed_variant": "#3035af",
+      "on_secondary_fixed_variant": "#00504c",
+      "background": "#f6faff",
+      "error_container": "#ffdad6",
+      "on_primary_container": "#6d0010",
+      "surface": "#f6faff",
+      "on_tertiary_fixed": "#02006d",
+      "on_primary": "#ffffff",
+      "tertiary_fixed_dim": "#bfc2ff",
+      "primary": "#ae2f34",
+      "on_background": "#161c21",
+      "primary_fixed": "#ffdad8",
+      "secondary_fixed": "#7cf6ec",
+      "outline_variant": "#e0bfbd",
+      "surface_dim": "#d5dbe2",
+      "on_tertiary_container": "#171a9c",
+      "inverse_primary": "#ffb3b0",
+      "on_primary_fixed": "#410006",
+      "on_surface": "#161c21",
+      "primary_fixed_dim": "#ffb3b0",
+      "primary_container": "#ff6b6b",
+      "on_tertiary": "#ffffff",
+      "surface_bright": "#f6faff",
+      "tertiary_container": "#8a91ff",
+      "on_primary_fixed_variant": "#8c1520",
+      "surface_container_highest": "#dde3ea",
+      "surface_tint": "#ae2f34",
+      "on_secondary_fixed": "#00201e",
+      "secondary_container": "#79f3ea",
+      "on_error": "#ffffff",
+      "on_secondary_container": "#006f69",
+      "outline": "#8c706f",
+      "on_secondary": "#ffffff",
+      "surface_container_low": "#eef4fb"
+    },
+    "colorVariant": "FIDELITY",
+    "overridePrimaryColor": "#ff6b6b",
+    "overrideSecondaryColor": "#4ecdc4",
+    "overrideTertiaryColor": "#7c83fd",
+    "overrideNeutralColor": "#e8eef5",
+    "spacingScale": 2,
+    "typography": {
+      "body-md": {
+        "fontFamily": "Outfit",
+        "fontSize": "15px",
+        "fontWeight": "400",
+        "lineHeight": "22px",
+        "letterSpacing": "0em"
+      },
+      "headline-sm": {
+        "fontFamily": "Outfit",
+        "fontSize": "18px",
+        "fontWeight": "600",
+        "lineHeight": "26px",
+        "letterSpacing": "0em"
+      },
+      "body-sm": {
+        "fontFamily": "Outfit",
+        "fontSize": "13px",
+        "fontWeight": "400",
+        "lineHeight": "18px",
+        "letterSpacing": "0.01em"
+      },
+      "display-lg": {
+        "fontFamily": "Outfit",
+        "fontSize": "48px",
+        "fontWeight": "700",
+        "lineHeight": "56px",
+        "letterSpacing": "-0.02em"
+      },
+      "display-lg-mobile": {
+        "fontFamily": "Outfit",
+        "fontSize": "34px",
+        "fontWeight": "700",
+        "lineHeight": "42px",
+        "letterSpacing": "-0.015em"
+      },
+      "headline-lg": {
+        "fontFamily": "Outfit",
+        "fontSize": "28px",
+        "fontWeight": "600",
+        "lineHeight": "36px",
+        "letterSpacing": "-0.01em"
+      },
+      "label-sm": {
+        "fontFamily": "Outfit",
+        "fontSize": "11px",
+        "fontWeight": "700",
+        "lineHeight": "14px",
+        "letterSpacing": "0.03em"
+      },
+      "label-lg": {
+        "fontFamily": "Outfit",
+        "fontSize": "15px",
+        "fontWeight": "600",
+        "lineHeight": "20px",
+        "letterSpacing": "0.01em"
+      },
+      "headline-md": {
+        "fontFamily": "Outfit",
+        "fontSize": "22px",
+        "fontWeight": "600",
+        "lineHeight": "30px",
+        "letterSpacing": "-0.005em"
+      },
+      "headline-xl": {
+        "fontFamily": "Outfit",
+        "fontSize": "36px",
+        "fontWeight": "700",
+        "lineHeight": "44px",
+        "letterSpacing": "-0.015em"
+      },
+      "label-md": {
+        "fontFamily": "Outfit",
+        "fontSize": "13px",
+        "fontWeight": "600",
+        "lineHeight": "18px",
+        "letterSpacing": "0.02em"
+      },
+      "headline-xl-mobile": {
+        "fontFamily": "Outfit",
+        "fontSize": "28px",
+        "fontWeight": "700",
+        "lineHeight": "36px",
+        "letterSpacing": "-0.01em"
+      },
+      "body-lg": {
+        "fontFamily": "Outfit",
+        "fontSize": "17px",
+        "fontWeight": "400",
+        "lineHeight": "26px",
+        "letterSpacing": "0em"
+      }
+    },
+    "spacing": {
+      "space-lg": "2rem",
+      "space-sm": "0.75rem",
+      "gutter": "1.5rem",
+      "space-xs": "0.375rem",
+      "margin": "2.5rem",
+      "space-md": "1.25rem",
+      "space-xl": "3rem",
+      "gutter-mobile": "1rem",
+      "margin-mobile": "1.25rem"
+    },
+    "headlineFontFamily": "Outfit",
+    "bodyFontFamily": "Outfit",
+    "labelFontFamily": "Outfit"
+  },
+  "deviceType": "MOBILE",
+  "screenType": "DESIGN",
+  "screenMetadata": {
+    "agentType": "PRO_AGENT",
+    "status": "COMPLETE"
+  },
+  "designSystem": {
+    "name": "assets/194b83bba7404e65a1b68f94743f69b2",
+    "designSystem": {
+      "displayName": "Tactile Clay",
+      "styleGuidelines": "## Brand & Style\n\nThis design system expresses a high-touch, tactile, physical aesthetic through the language of refined Claymorphism. It mimics sculptable, matte plasticine, soft rubber, and volumetric shapes floating over a pillowy canvas. The design targets modern consumer applications, creative platforms, modern fintech, and interactive tools that demand an inviting, touch-friendly, and optimistic tone.\n\nThe visual style departs from flat, sterile interfaces by rendering UI elements as inflated volumetric bodies. Highlights simulate soft top-left key lighting, dual outer shadows ground elements with ambient diffusion, and subtle inner dark bevels establish physical edge curvature. The interface feels friendly, tactile, and responsive—like physical tokens on a smooth matte desk.\n\n## Layout & Spacing\n\nBecause claymorphic elements utilize extended drop shadows (up to 20px blur and offsets), layout boundaries require generous internal padding and clearance to prevent clipping and visual clutter.\n\n- **Grid Architecture**: 12-column fluid grid on desktop (max-width `1280px`), adapting to 6 columns on tablet and 4 columns on mobile.\n- **Padding Protocol**: Containers must feature internal padding (`space-md` or `space-lg`) that matches or exceeds their border radius to prevent nested text from encroaching on volumetric curved edges.\n- **Breathing Space**: Adjacent clay cards require a minimum gap of `space-md` (`1.25rem`) to stop their soft ambient shadows from muddying into one another.\n\n## Elevation & Depth\n\nDepth in this system is formed by a quadri-directional light model combining external ambient lighting with inner rim specular physics. All clay elements omit hard outlines in favor of the four-phase shadow stack:\n\n1. **Outer Key Shadow**: Shifts down-right (`8px to 16px`), tinted with the surface's background darkness (`rgba(30, 45, 65, 0.12)`).\n2. **Outer Ambient Bounce**: Shifts top-left (`-8px to -14px`), tinted bright pure white (`rgba(255, 255, 255, 0.75)` to `0.9`), visually separating the element from the matte canvas.\n3. **Inner Glaze Highlight**: Inset down-right (`inset 2px 2px 4px rgba(255, 255, 255, 0.8)`), providing a soft pillowy edge reflection.\n4. **Inner Bevel Undercut**: Inset top-left (`inset -2px -2px 4px rgba(0, 0, 0, 0.08)` to `0.12`), providing bottom-lip occlusion to simulate physical clay mass.\n\n### Elevation Hierarchy\n\n- **Level 0 (Recessed / Inset)**: Inputs, toggled wells, and active states. \n  `box-shadow: inset 4px 4px 8px rgba(70, 90, 120, 0.16), inset -4px -4px 8px rgba(255, 255, 255, 0.8);`\n- **Level 1 (Resting Cards & Tiles)**:\n  `box-shadow: 8px 8px 16px rgba(70, 90, 120, 0.10), -8px -8px 16px rgba(255, 255, 255, 0.85), inset 2px 2px 3px rgba(255, 255, 255, 0.7), inset -2px -2px 3px rgba(70, 90, 120, 0.06);`\n- **Level 2 (Interactive Floating / Hover)**: Buttons and focused cards.\n  `box-shadow: 12px 14px 24px rgba(70, 90, 120, 0.14), -10px -10px 20px rgba(255, 255, 255, 0.95), inset 3px 3px 5px rgba(255, 255, 255, 0.85), inset -3px -3px 5px rgba(70, 90, 120, 0.10);`\n- **Level 3 (Modals / Overlays)**:\n  `box-shadow: 20px 24px 36px rgba(50, 70, 95, 0.20), -16px -16px 32px rgba(255, 255, 255, 1.0), inset 4px 4px 6px rgba(255, 255, 255, 0.9), inset -4px -4px 6px rgba(50, 70, 95, 0.12);`\n\n## Components\n\n### Buttons\n- **Primary (Clay Coral)**: Rendered in `#FF6B6B` with white text. Employs colored drop shadow (`8px 10px 20px rgba(255, 107, 107, 0.35)`), negative white top-bounce, and inner specular highlight (`inset 2px 2px 3px rgba(255, 255, 255, 0.5)`).\n- **Secondary (Clay Neutral)**: Surface colored in `#F0F4F9` with dark charcoal text `#1E2530`. Uses standard Level 1 clay shadow stack.\n- **Interaction**: On `:hover`, translateY(-2px) with expanded shadows. On `:active`, translateY(2px) and swap outer shadow stack with the Level 0 inset depressed stack.\n\n### Cards\n- Standard containers use `#F3F7FC` over `#E8EEF5`. Internal padding is strictly `space-lg` (`2rem`).\n- Cards avoid 1px border lines entirely. Structural containment is achieved solely through the 4-phase clay elevation profile.\n\n### Input Fields & Controls\n- **Inputs**: Sit in an embossed, pressed-in cavity. Background uses `#E2E9F2` with inset shadows (`inset 3px 3px 6px rgba(70, 90, 120, 0.14), inset -3px -3px 6px rgba(255, 255, 255, 0.9)`). On focus, transition the inner top highlight to `#4ECDC4` glow.\n- **Checkboxes & Radios**: 24px wide rounded squares or circles with deep inset cavities. Checked state inflates an inner clay bead colored in primary coral or turquoise.\n\n### Chips & Badges\n- Pill-shaped (`rounded-full`) tags displaying category meta or filters.\n- Default state features a subtle floating clay style; active state snaps into a saturated candy clay surface with white typography.\n\n### Sliders & Toggles\n- **Track**: Inset concave groove with deep ambient interior shading.\n- **Thumb**: Inflated spherical bead using Level 2 elevation that visually overhangs the track edges.",
+      "theme": {
+        "colorMode": "LIGHT",
+        "font": "OUTFIT",
+        "roundness": "ROUND_FULL",
+        "customColor": "#ff6b6b",
+        "headlineFont": "OUTFIT",
+        "bodyFont": "OUTFIT",
+        "labelFont": "OUTFIT",
+        "namedColors": {
+          "primary_fixed_dim": "#ffb3b0",
+          "tertiary": "#4950c7",
+          "surface_container_low": "#eef4fb",
+          "tertiary_fixed": "#e0e0ff",
+          "on_secondary_fixed_variant": "#00504c",
+          "surface": "#f6faff",
+          "tertiary_container": "#8a91ff",
+          "secondary": "#006a65",
+          "primary": "#ae2f34",
+          "surface_container_highest": "#dde3ea",
+          "secondary_container": "#79f3ea",
+          "primary_container": "#ff6b6b",
+          "on_secondary_fixed": "#00201e",
+          "on_primary": "#ffffff",
+          "surface_tint": "#ae2f34",
+          "surface_container_lowest": "#ffffff",
+          "primary_fixed": "#ffdad8",
+          "on_primary_fixed": "#410006",
+          "on_background": "#161c21",
+          "on_secondary": "#ffffff",
+          "inverse_primary": "#ffb3b0",
+          "on_tertiary_container": "#171a9c",
+          "background": "#f6faff",
+          "outline_variant": "#e0bfbd",
+          "on_primary_container": "#6d0010",
+          "on_secondary_container": "#006f69",
+          "secondary_fixed": "#7cf6ec",
+          "error": "#ba1a1a",
+          "on_surface_variant": "#584140",
+          "surface_bright": "#f6faff",
+          "on_error_container": "#93000a",
+          "on_surface": "#161c21",
+          "inverse_on_surface": "#ebf1f8",
+          "outline": "#8c706f",
+          "error_container": "#ffdad6",
+          "surface_container_high": "#e3e9f0",
+          "surface_container": "#e8eef5",
+          "surface_variant": "#dde3ea",
+          "surface_dim": "#d5dbe2",
+          "on_tertiary_fixed_variant": "#3035af",
+          "secondary_fixed_dim": "#5dd9d0",
+          "on_tertiary": "#ffffff",
+          "on_primary_fixed_variant": "#8c1520",
+          "inverse_surface": "#2b3136",
+          "tertiary_fixed_dim": "#bfc2ff",
+          "on_tertiary_fixed": "#02006d",
+          "on_error": "#ffffff"
+        },
+        "designMd": "---\nname: Tactile Clay\ncolors:\n  surface: '#f6faff'\n  surface-dim: '#d5dbe2'\n  surface-bright: '#f6faff'\n  surface-container-lowest: '#ffffff'\n  surface-container-low: '#eef4fb'\n  surface-container: '#e8eef5'\n  surface-container-high: '#e3e9f0'\n  surface-container-highest: '#dde3ea'\n  on-surface: '#161c21'\n  on-surface-variant: '#584140'\n  inverse-surface: '#2b3136'\n  inverse-on-surface: '#ebf1f8'\n  outline: '#8c706f'\n  outline-variant: '#e0bfbd'\n  surface-tint: '#ae2f34'\n  primary: '#ae2f34'\n  on-primary: '#ffffff'\n  primary-container: '#ff6b6b'\n  on-primary-container: '#6d0010'\n  inverse-primary: '#ffb3b0'\n  secondary: '#006a65'\n  on-secondary: '#ffffff'\n  secondary-container: '#79f3ea'\n  on-secondary-container: '#006f69'\n  tertiary: '#4950c7'\n  on-tertiary: '#ffffff'\n  tertiary-container: '#8a91ff'\n  on-tertiary-container: '#171a9c'\n  error: '#ba1a1a'\n  on-error: '#ffffff'\n  error-container: '#ffdad6'\n  on-error-container: '#93000a'\n  primary-fixed: '#ffdad8'\n  primary-fixed-dim: '#ffb3b0'\n  on-primary-fixed: '#410006'\n  on-primary-fixed-variant: '#8c1520'\n  secondary-fixed: '#7cf6ec'\n  secondary-fixed-dim: '#5dd9d0'\n  on-secondary-fixed: '#00201e'\n  on-secondary-fixed-variant: '#00504c'\n  tertiary-fixed: '#e0e0ff'\n  tertiary-fixed-dim: '#bfc2ff'\n  on-tertiary-fixed: '#02006d'\n  on-tertiary-fixed-variant: '#3035af'\n  background: '#f6faff'\n  on-background: '#161c21'\n  surface-variant: '#dde3ea'\ntypography:\n  display-lg:\n    fontFamily: Outfit\n    fontSize: 48px\n    fontWeight: '700'\n    lineHeight: 56px\n    letterSpacing: -0.02em\n  display-lg-mobile:\n    fontFamily: Outfit\n    fontSize: 34px\n    fontWeight: '700'\n    lineHeight: 42px\n    letterSpacing: -0.015em\n  headline-xl:\n    fontFamily: Outfit\n    fontSize: 36px\n    fontWeight: '700'\n    lineHeight: 44px\n    letterSpacing: -0.015em\n  headline-xl-mobile:\n    fontFamily: Outfit\n    fontSize: 28px\n    fontWeight: '700'\n    lineHeight: 36px\n    letterSpacing: -0.01em\n  headline-lg:\n    fontFamily: Outfit\n    fontSize: 28px\n    fontWeight: '600'\n    lineHeight: 36px\n    letterSpacing: -0.01em\n  headline-md:\n    fontFamily: Outfit\n    fontSize: 22px\n    fontWeight: '600'\n    lineHeight: 30px\n    letterSpacing: -0.005em\n  headline-sm:\n    fontFamily: Outfit\n    fontSize: 18px\n    fontWeight: '600'\n    lineHeight: 26px\n    letterSpacing: 0em\n  body-lg:\n    fontFamily: Outfit\n    fontSize: 17px\n    fontWeight: '400'\n    lineHeight: 26px\n    letterSpacing: 0em\n  body-md:\n    fontFamily: Outfit\n    fontSize: 15px\n    fontWeight: '400'\n    lineHeight: 22px\n    letterSpacing: 0em\n  body-sm:\n    fontFamily: Outfit\n    fontSize: 13px\n    fontWeight: '400'\n    lineHeight: 18px\n    letterSpacing: 0.01em\n  label-lg:\n    fontFamily: Outfit\n    fontSize: 15px\n    fontWeight: '600'\n    lineHeight: 20px\n    letterSpacing: 0.01em\n  label-md:\n    fontFamily: Outfit\n    fontSize: 13px\n    fontWeight: '600'\n    lineHeight: 18px\n    letterSpacing: 0.02em\n  label-sm:\n    fontFamily: Outfit\n    fontSize: 11px\n    fontWeight: '700'\n    lineHeight: 14px\n    letterSpacing: 0.03em\nrounded:\n  sm: 0.5rem\n  DEFAULT: 1rem\n  md: 1.5rem\n  lg: 2rem\n  xl: 3rem\n  full: 9999px\nspacing:\n  gutter: 1.5rem\n  gutter-mobile: 1rem\n  margin: 2.5rem\n  margin-mobile: 1.25rem\n  space-xs: 0.375rem\n  space-sm: 0.75rem\n  space-md: 1.25rem\n  space-lg: 2rem\n  space-xl: 3rem\n---\n\n## Brand & Style\n\nThis design system expresses a high-touch, tactile, physical aesthetic through the language of refined Claymorphism. It mimics sculptable, matte plasticine, soft rubber, and volumetric shapes floating over a pillowy canvas. The design targets modern consumer applications, creative platforms, modern fintech, and interactive tools that demand an inviting, touch-friendly, and optimistic tone.\n\nThe visual style departs from flat, sterile interfaces by rendering UI elements as inflated volumetric bodies. Highlights simulate soft top-left key lighting, dual outer shadows ground elements with ambient diffusion, and subtle inner dark bevels establish physical edge curvature. The interface feels friendly, tactile, and responsive—like physical tokens on a smooth matte desk.\n\n## Colors\n\nThe palette balances a warm, tinted ceramic backdrop with saturated, playful candy tones. Surfaces never use pure `#FFFFFF` as a full container fill; instead, light enters via specular inner lighting tokens while the canvas remains a tinted pale slate-blue clay tone (`#E8EEF5`).\n\n- **Canvas & Neutral Foundation**: `#E8EEF5` serves as the global canvas background. Neutral elevated surfaces use `#F0F4F9` with dark ambient shadows (`rgba(70, 90, 120, 0.14)`) and crisp bounce highlights (`rgba(255, 255, 255, 0.9)`). Text neutrals step from deep matte charcoal `#1E2530` for high contrast down to `#68778D` for subtext.\n- **Primary (Clay Coral - `#FF6B6B`)**: Used for primary action buttons, destructive or critical highlights, and focal interactive cards.\n- **Secondary (Tech Turquoise - `#4ECDC4`)**: Expresses freshness, success indicators, toggle states, and affirmative interactive controls.\n- **Tertiary (Lavender Blue - `#7C83FD`)**: Applied to badges, secondary tools, navigational accents, and category tags.\n- **Supporting Candies**: Honey Amber (`#FFB347`) for warnings/star ratings, and Fresh Mint (`#69E781`) for micro-affirmations.\n\n## Typography\n\nThe typography leverages Outfit to achieve geometric balance, rounded terminal details, and wide open counters that echo the inflated forms of the components. \n\n- **Weight Discipline**: Reserve `700` (Bold) for displays, main metrics, and pill-button labels to counterweight the heavy 3D shadow depths. Body copy uses `400` (Regular) and `500` (Medium) to maintain clarity against soft clay surface elevations.\n- **Rhythm & Line Heights**: Headings maintain tight line-height ratios (1.15 to 1.25) to read as cohesive visual stamps. Body text retains generous leading (1.45 to 1.55) to prevent eye fatigue over tinted clay backdrops.\n\n## Layout & Spacing\n\nBecause claymorphic elements utilize extended drop shadows (up to 20px blur and offsets), layout boundaries require generous internal padding and clearance to prevent clipping and visual clutter.\n\n- **Grid Architecture**: 12-column fluid grid on desktop (max-width `1280px`), adapting to 6 columns on tablet and 4 columns on mobile.\n- **Padding Protocol**: Containers must feature internal padding (`space-md` or `space-lg`) that matches or exceeds their border radius to prevent nested text from encroaching on volumetric curved edges.\n- **Breathing Space**: Adjacent clay cards require a minimum gap of `space-md` (`1.25rem`) to stop their soft ambient shadows from muddying into one another.\n\n## Elevation & Depth\n\nDepth in this system is formed by a quadri-directional light model combining external ambient lighting with inner rim specular physics. All clay elements omit hard outlines in favor of the four-phase shadow stack:\n\n1. **Outer Key Shadow**: Shifts down-right (`8px to 16px`), tinted with the surface's background darkness (`rgba(30, 45, 65, 0.12)`).\n2. **Outer Ambient Bounce**: Shifts top-left (`-8px to -14px`), tinted bright pure white (`rgba(255, 255, 255, 0.75)` to `0.9`), visually separating the element from the matte canvas.\n3. **Inner Glaze Highlight**: Inset down-right (`inset 2px 2px 4px rgba(255, 255, 255, 0.8)`), providing a soft pillowy edge reflection.\n4. **Inner Bevel Undercut**: Inset top-left (`inset -2px -2px 4px rgba(0, 0, 0, 0.08)` to `0.12`), providing bottom-lip occlusion to simulate physical clay mass.\n\n### Elevation Hierarchy\n\n- **Level 0 (Recessed / Inset)**: Inputs, toggled wells, and active states. \n  `box-shadow: inset 4px 4px 8px rgba(70, 90, 120, 0.16), inset -4px -4px 8px rgba(255, 255, 255, 0.8);`\n- **Level 1 (Resting Cards & Tiles)**:\n  `box-shadow: 8px 8px 16px rgba(70, 90, 120, 0.10), -8px -8px 16px rgba(255, 255, 255, 0.85), inset 2px 2px 3px rgba(255, 255, 255, 0.7), inset -2px -2px 3px rgba(70, 90, 120, 0.06);`\n- **Level 2 (Interactive Floating / Hover)**: Buttons and focused cards.\n  `box-shadow: 12px 14px 24px rgba(70, 90, 120, 0.14), -10px -10px 20px rgba(255, 255, 255, 0.95), inset 3px 3px 5px rgba(255, 255, 255, 0.85), inset -3px -3px 5px rgba(70, 90, 120, 0.10);`\n- **Level 3 (Modals / Overlays)**:\n  `box-shadow: 20px 24px 36px rgba(50, 70, 95, 0.20), -16px -16px 32px rgba(255, 255, 255, 1.0), inset 4px 4px 6px rgba(255, 255, 255, 0.9), inset -4px -4px 6px rgba(50, 70, 95, 0.12);`\n\n## Shapes\n\nThe shape philosophy rejects sharp corners. Every boundary is extruded, bulbous, and soft to mimic molded compound.\n\n- **Pill Shaping (Full Radius)**: Mandated for primary and secondary action buttons, status tags, badges, search bars, and segmented tab pills.\n- **Card Enclosures (`rounded-2xl` to `rounded-3xl` / 1.5rem - 2rem)**: Applied to medium and large surface cards, modals, and list row wrappers.\n- **Micro UI (`rounded-xl` / 1rem)**: The absolute minimum allowed curvature; reserved only for tight spaces like dropdown menus and checkboxes.\n\n## Components\n\n### Buttons\n- **Primary (Clay Coral)**: Rendered in `#FF6B6B` with white text. Employs colored drop shadow (`8px 10px 20px rgba(255, 107, 107, 0.35)`), negative white top-bounce, and inner specular highlight (`inset 2px 2px 3px rgba(255, 255, 255, 0.5)`).\n- **Secondary (Clay Neutral)**: Surface colored in `#F0F4F9` with dark charcoal text `#1E2530`. Uses standard Level 1 clay shadow stack.\n- **Interaction**: On `:hover`, translateY(-2px) with expanded shadows. On `:active`, translateY(2px) and swap outer shadow stack with the Level 0 inset depressed stack.\n\n### Cards\n- Standard containers use `#F3F7FC` over `#E8EEF5`. Internal padding is strictly `space-lg` (`2rem`).\n- Cards avoid 1px border lines entirely. Structural containment is achieved solely through the 4-phase clay elevation profile.\n\n### Input Fields & Controls\n- **Inputs**: Sit in an embossed, pressed-in cavity. Background uses `#E2E9F2` with inset shadows (`inset 3px 3px 6px rgba(70, 90, 120, 0.14), inset -3px -3px 6px rgba(255, 255, 255, 0.9)`). On focus, transition the inner top highlight to `#4ECDC4` glow.\n- **Checkboxes & Radios**: 24px wide rounded squares or circles with deep inset cavities. Checked state inflates an inner clay bead colored in primary coral or turquoise.\n\n### Chips & Badges\n- Pill-shaped (`rounded-full`) tags displaying category meta or filters.\n- Default state features a subtle floating clay style; active state snaps into a saturated candy clay surface with white typography.\n\n### Sliders & Toggles\n- **Track**: Inset concave groove with deep ambient interior shading.\n- **Thumb**: Inflated spherical bead using Level 2 elevation that visually overhangs the track edges.",
+        "colorVariant": "FIDELITY",
+        "overridePrimaryColor": "#ff6b6b",
+        "overrideSecondaryColor": "#4ecdc4",
+        "overrideTertiaryColor": "#7c83fd",
+        "overrideNeutralColor": "#e8eef5",
+        "spacingScale": 2,
+        "typography": {
+          "headline-xl": {
+            "fontFamily": "Outfit",
+            "fontSize": "36px",
+            "fontWeight": "700",
+            "lineHeight": "44px",
+            "letterSpacing": "-0.015em"
+          },
+          "headline-md": {
+            "fontFamily": "Outfit",
+            "fontSize": "22px",
+            "fontWeight": "600",
+            "lineHeight": "30px",
+            "letterSpacing": "-0.005em"
+          },
+          "body-md": {
+            "fontFamily": "Outfit",
+            "fontSize": "15px",
+            "fontWeight": "400",
+            "lineHeight": "22px",
+            "letterSpacing": "0em"
+          },
+          "label-md": {
+            "fontFamily": "Outfit",
+            "fontSize": "13px",
+            "fontWeight": "600",
+            "lineHeight": "18px",
+            "letterSpacing": "0.02em"
+          },
+          "display-lg-mobile": {
+            "fontFamily": "Outfit",
+            "fontSize": "34px",
+            "fontWeight": "700",
+            "lineHeight": "42px",
+            "letterSpacing": "-0.015em"
+          },
+          "body-sm": {
+            "fontFamily": "Outfit",
+            "fontSize": "13px",
+            "fontWeight": "400",
+            "lineHeight": "18px",
+            "letterSpacing": "0.01em"
+          },
+          "label-lg": {
+            "fontFamily": "Outfit",
+            "fontSize": "15px",
+            "fontWeight": "600",
+            "lineHeight": "20px",
+            "letterSpacing": "0.01em"
+          },
+          "label-sm": {
+            "fontFamily": "Outfit",
+            "fontSize": "11px",
+            "fontWeight": "700",
+            "lineHeight": "14px",
+            "letterSpacing": "0.03em"
+          },
+          "body-lg": {
+            "fontFamily": "Outfit",
+            "fontSize": "17px",
+            "fontWeight": "400",
+            "lineHeight": "26px",
+            "letterSpacing": "0em"
+          },
+          "headline-xl-mobile": {
+            "fontFamily": "Outfit",
+            "fontSize": "28px",
+            "fontWeight": "700",
+            "lineHeight": "36px",
+            "letterSpacing": "-0.01em"
+          },
+          "headline-sm": {
+            "fontFamily": "Outfit",
+            "fontSize": "18px",
+            "fontWeight": "600",
+            "lineHeight": "26px",
+            "letterSpacing": "0em"
+          },
+          "headline-lg": {
+            "fontFamily": "Outfit",
+            "fontSize": "28px",
+            "fontWeight": "600",
+            "lineHeight": "36px",
+            "letterSpacing": "-0.01em"
+          },
+          "display-lg": {
+            "fontFamily": "Outfit",
+            "fontSize": "48px",
+            "fontWeight": "700",
+            "lineHeight": "56px",
+            "letterSpacing": "-0.02em"
+          }
+        },
+        "spacing": {
+          "gutter-mobile": "1rem",
+          "space-xs": "0.375rem",
+          "space-lg": "2rem",
+          "space-sm": "0.75rem",
+          "margin-mobile": "1.25rem",
+          "space-xl": "3rem",
+          "space-md": "1.25rem",
+          "gutter": "1.5rem",
+          "margin": "2.5rem"
+        },
+        "headlineFontFamily": "Outfit",
+        "bodyFontFamily": "Outfit",
+        "labelFontFamily": "Outfit"
+      }
+    },
+    "version": "1"
+  }
+}

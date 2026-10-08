@@ -1,0 +1,597 @@
+<!DOCTYPE html>
+
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" name="viewport"/>
+<meta content="mobile_tab" name="shell-type"/>
+<title>RoadBump - Civic Action &amp; Admin Dispatch</title>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<!-- Poppins Font & Material Symbols -->
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Poppins', 'sans-serif'],
+          },
+          colors: {
+            clay: {
+              bg: '#EEF2F7',
+              surface: '#F6F9FD',
+              card: '#FFFFFF',
+              dark: '#2D3748',
+              muted: '#718096',
+              border: '#E2E8F0',
+              accent: '#4F46E5',
+              coral: '#FF6B6B',
+              amber: '#FF9F43',
+              mint: '#10B981',
+              sky: '#0EA5E9',
+              teal: '#0D9488',
+            }
+          }
+        }
+      }
+    }
+  </script>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+      font-family: 'Poppins', sans-serif;
+      background-color: #EEF2F7;
+      color: #2D3748;
+      overscroll-behavior: none;
+    }
+    .pb-safe { padding-bottom: env(safe-area-inset-bottom, 16px); }
+    .pt-safe { padding-top: env(safe-area-inset-top, 16px); }
+    ::-webkit-scrollbar { display: none; }
+
+    /* Tactile Claymorphism Shadows & Insets */
+    .clay-card {
+      background: #FFFFFF;
+      box-shadow: 
+        10px 14px 28px rgba(166, 180, 200, 0.45),
+        -8px -8px 20px rgba(255, 255, 255, 0.9),
+        inset 2px 2px 3px rgba(255, 255, 255, 0.8),
+        inset -2px -2px 4px rgba(200, 212, 228, 0.3);
+      border: 1px solid rgba(255, 255, 255, 0.8);
+    }
+
+    .clay-subcard {
+      background: #F4F7FC;
+      box-shadow: 
+        inset 4px 4px 8px rgba(188, 202, 222, 0.4),
+        inset -4px -4px 8px rgba(255, 255, 255, 0.8),
+        0 2px 4px rgba(0,0,0,0.02);
+    }
+
+    .clay-badge {
+      box-shadow: 
+        3px 4px 8px rgba(175, 189, 208, 0.35),
+        -3px -3px 6px rgba(255, 255, 255, 0.9),
+        inset 1px 1px 2px rgba(255, 255, 255, 0.6);
+    }
+
+    .clay-btn {
+      box-shadow: 
+        6px 8px 16px rgba(160, 175, 196, 0.45),
+        -5px -5px 12px rgba(255, 255, 255, 0.95),
+        inset 1px 1px 2px rgba(255, 255, 255, 0.7);
+      transition: all 0.15s ease;
+    }
+    .clay-btn:active {
+      transform: scale(0.97);
+      box-shadow: 
+        inset 3px 3px 6px rgba(160, 175, 196, 0.45),
+        inset -3px -3px 6px rgba(255, 255, 255, 0.8);
+    }
+
+    .clay-btn-primary {
+      background: linear-gradient(135deg, #FF9F43 0%, #FF7A00 100%);
+      color: #FFFFFF;
+      box-shadow: 
+        6px 8px 16px rgba(255, 140, 26, 0.38),
+        -4px -4px 10px rgba(255, 255, 255, 0.8),
+        inset 2px 2px 3px rgba(255, 255, 255, 0.45),
+        inset -2px -2px 4px rgba(180, 70, 0, 0.25);
+    }
+    .clay-btn-primary:active {
+      transform: scale(0.97);
+      box-shadow: 
+        inset 3px 3px 6px rgba(180, 70, 0, 0.4),
+        inset -2px -2px 4px rgba(255, 255, 255, 0.3);
+    }
+
+    .clay-btn-coral {
+      background: linear-gradient(135deg, #FF7B7B 0%, #FA5252 100%);
+      color: #FFFFFF;
+      box-shadow: 
+        5px 7px 15px rgba(250, 82, 82, 0.35),
+        -3px -3px 8px rgba(255, 255, 255, 0.8),
+        inset 1.5px 1.5px 2px rgba(255, 255, 255, 0.45);
+    }
+    .clay-btn-coral:active {
+      transform: scale(0.97);
+      box-shadow: 
+        inset 3px 3px 6px rgba(180, 30, 30, 0.4);
+    }
+
+    .clay-btn-indigo {
+      background: linear-gradient(135deg, #6366F1 0%, #4F46E5 100%);
+      color: #FFFFFF;
+      box-shadow: 
+        5px 7px 15px rgba(79, 70, 229, 0.35),
+        -3px -3px 8px rgba(255, 255, 255, 0.8),
+        inset 1.5px 1.5px 2px rgba(255, 255, 255, 0.45);
+    }
+    .clay-btn-indigo:active {
+      transform: scale(0.97);
+      box-shadow: 
+        inset 3px 3px 6px rgba(45, 35, 150, 0.4);
+    }
+
+    .clay-inset-input {
+      background: #EDF2F8;
+      box-shadow: 
+        inset 3px 3px 6px rgba(185, 198, 215, 0.5),
+        inset -3px -3px 6px rgba(255, 255, 255, 0.95);
+      border: 1px solid rgba(220, 230, 242, 0.6);
+    }
+
+    .clay-nav {
+      background: rgba(246, 249, 253, 0.88);
+      backdrop-filter: blur(16px);
+      box-shadow: 
+        0 -8px 24px rgba(170, 185, 205, 0.35),
+        inset 0 1px 2px rgba(255, 255, 255, 0.85);
+    }
+
+    .clay-nav-active {
+      background: #FFFFFF;
+      box-shadow: 
+        4px 5px 12px rgba(160, 175, 196, 0.45),
+        -3px -3px 8px rgba(255, 255, 255, 0.9),
+        inset 1px 1px 2px rgba(255, 255, 255, 0.8);
+    }
+  </style>
+</head>
+<body class="bg-clay-bg text-clay-dark flex flex-col min-h-screen">
+<!-- Top Sticky Header -->
+<header class="fixed top-0 w-full z-50 bg-clay-bg/90 backdrop-blur-md pt-safe shadow-[0_4px_16px_rgba(180,195,215,0.25)]">
+<div class="h-16 px-4 flex items-center justify-between gap-3">
+<div class="flex items-center gap-3 min-w-0">
+<div class="w-10 h-10 rounded-2xl clay-card flex items-center justify-center p-1.5 shrink-0">
+<img alt="RoadBump Logo" class="h-full w-auto object-contain" src="https://lh3.googleusercontent.com/aida/AEtjO1WrRt-gQHeMBl6nz1UZFvKvnj0RXHNJGaNY0pgDcCpZUWjKN9dpfrG-GFsqqOWaHDMo8-NspjXL9Y48fb4gba35rD9JAABqXDxsU1liJSr9Mr450pCT-VMfRz2s0seM7_nLYA1FZTp-4EGiT6kLQ4SEGZTruQ2dTw09AcWe8rVjZ1YZMBzp2ECs8dSro-fg_rwY2IwWXOhuMY2-knvVErRUKxIFAMjaVfmPUqBZgD-z5g"/>
+</div>
+<div class="flex flex-col min-w-0">
+<div class="flex items-center gap-2">
+<span class="text-[17px] font-bold tracking-tight text-clay-dark leading-none truncate">RoadBump</span>
+<span class="text-[10px] font-bold text-clay-accent bg-indigo-50 border border-indigo-100 px-2 py-0.5 rounded-full clay-badge uppercase tracking-wider">HUD</span>
+</div>
+<div class="flex items-center gap-1.5 mt-1">
+<span class="relative flex h-2 w-2 shrink-0">
+<span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+<span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+</span>
+<span class="text-[11px] font-semibold text-clay-muted tracking-tight truncate">100Hz • ACTIVE</span>
+</div>
+</div>
+</div>
+<div class="flex items-center gap-2 shrink-0">
+<!-- Torch Flash Button -->
+<button aria-label="Toggle Night Flash Mode" class="w-10 h-10 flex items-center justify-center rounded-2xl clay-card text-clay-muted hover:text-clay-amber transition-all active:scale-95" type="button">
+<span class="material-symbols-outlined text-[20px]">flash_on</span>
+</button>
+<!-- Hazard Notification Button -->
+<button aria-label="Emergency Hazard Alert" class="w-10 h-10 flex items-center justify-center rounded-2xl clay-card text-clay-coral hover:bg-red-50 transition-all relative active:scale-95" type="button">
+<span class="material-symbols-outlined text-[20px]">notifications_active</span>
+<span class="absolute top-2 right-2 w-2 h-2 rounded-full bg-clay-coral animate-ping"></span>
+</button>
+<!-- User Avatar -->
+<div class="w-10 h-10 rounded-2xl clay-card p-0.5 flex items-center justify-center">
+<div class="w-full h-full rounded-xl bg-gradient-to-tr from-indigo-500 to-indigo-400 flex items-center justify-center shadow-inner">
+<span class="material-symbols-outlined text-white text-[18px]">person</span>
+</div>
+</div>
+</div>
+</div>
+</header>
+<!-- Main Scrollable Content -->
+<main class="flex flex-col relative w-full pt-20 pb-28 min-h-screen">
+<div class="flex flex-col w-full px-4 space-y-4">
+<!-- Interactive Clay Toast Notification -->
+<div class="fixed top-20 left-4 right-4 z-50 transform -translate-y-28 opacity-0 transition-all duration-300 pointer-events-none flex items-center gap-3 p-3.5 rounded-2xl clay-card" id="toastNotification">
+<div class="w-9 h-9 rounded-xl bg-indigo-50 flex items-center justify-center shrink-0 clay-badge">
+<span class="material-symbols-outlined text-clay-accent text-[22px]" id="toastIcon">info</span>
+</div>
+<div class="flex flex-col min-w-0">
+<span class="text-[13px] font-bold text-clay-dark truncate" id="toastTitle">Action Executed</span>
+<span class="text-[11px] font-medium text-clay-muted truncate" id="toastMsg">Telemetry dispatch synced with municipal server.</span>
+</div>
+</div>
+<!-- Civic Control Console Banner -->
+<div class="clay-card rounded-3xl p-3.5 flex items-center justify-between">
+<div class="flex items-center gap-3">
+<div class="w-3 h-3 rounded-full bg-clay-amber ring-4 ring-amber-100 animate-pulse shrink-0"></div>
+<div class="flex flex-col">
+<span class="text-[10px] font-bold uppercase tracking-wider text-clay-muted">Civic Control Console</span>
+<span class="text-[14px] font-bold text-clay-dark leading-tight">Admin Dispatch &amp; Civic Action</span>
+</div>
+</div>
+<span class="text-[10px] font-bold text-indigo-700 bg-indigo-50 border border-indigo-100/80 px-2.5 py-1 rounded-full clay-badge">BBMP WARD #112</span>
+</div>
+<!-- SECTION 1: Provisional Hazard Influx (FCM Push Notification Review) -->
+<section class="clay-card rounded-3xl p-4 space-y-3.5 relative overflow-hidden" id="hazardCard">
+<!-- Header tag line -->
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-2">
+<div class="w-7 h-7 rounded-full bg-amber-100 flex items-center justify-center clay-badge">
+<span class="material-symbols-outlined text-clay-amber text-[18px]">warning</span>
+</div>
+<span class="text-[11px] font-bold uppercase tracking-wide text-clay-amber">FCM Alert: Provisional Hazard Incoming</span>
+</div>
+<span class="text-[10px] font-bold px-2.5 py-1 rounded-full bg-red-50 text-red-600 border border-red-100 clay-badge">HIGH SEVERITY</span>
+</div>
+<!-- Geo & Reporter Summary -->
+<div class="clay-subcard rounded-2xl p-3 space-y-2">
+<div class="flex items-start justify-between">
+<div class="flex flex-col min-w-0 pr-2">
+<span class="text-[15px] font-bold text-clay-dark truncate">Indiranagar 100ft Rd</span>
+<span class="text-[11px] font-medium text-indigo-600">12.9716° N, 77.5946° E • Geohash: tdruw8k</span>
+</div>
+<span class="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-white text-clay-muted clay-badge shrink-0">1 min ago</span>
+</div>
+<div class="flex items-center gap-2 pt-1 text-clay-muted border-t border-slate-200/60">
+<span class="material-symbols-outlined text-[16px] text-clay-accent">sensors</span>
+<span class="text-[11px] font-medium text-clay-dark">Field Device <strong class="text-clay-accent font-bold">#A82</strong></span>
+<span class="text-slate-300">•</span>
+<span class="text-[11px] font-bold text-red-600 bg-red-100/70 px-2 py-0.5 rounded-full clay-badge">RMS 2.6g Spike</span>
+</div>
+</div>
+<!-- Photo Thumbnail with EXIF Tag -->
+<div class="relative w-full h-44 rounded-2xl overflow-hidden shadow-inner border border-slate-100">
+<img class="w-full h-full object-cover" data-alt="Close up tactical asphalt road inspection view showing an asphalt fracture and deep pothole on a sunlit city avenue with precise municipal measurement markers and high contrast road grit." src="https://lh3.googleusercontent.com/aida-public/AB6AXuAd0xebr4iT24sJ6VSvhcaiDgXnbHku70OsEfryr2ydoA7to1AEeqtNMnjuOs34do7UtZrPEJSimhmpVV62vQLO3ar-rMPgAAo573TiWhsE33VOpS1IiD0es1fsAT5E9LVRVAW61B8ccpbSbeEtIeAdnBT8SBX1Nn-rmt-UwV_pIieTQMwFQAqrjuF8ImgLS-vxoRy5tTOe4DlD4Tskv2Jb76EnwW_VehbK8OdsfQ9D"/>
+<div class="absolute bottom-2.5 left-2.5 right-2.5 flex items-center justify-between bg-white/90 backdrop-blur-md px-3 py-1.5 rounded-xl clay-badge border border-white">
+<div class="flex items-center gap-1.5">
+<span class="material-symbols-outlined text-indigo-600 text-[16px]">location_on</span>
+<span class="text-[11px] font-semibold text-clay-dark">EXIF: Lat 12.9716 Long 77.5946</span>
+</div>
+<span class="text-[10px] font-bold text-clay-amber bg-amber-50 px-2 py-0.5 rounded-lg border border-amber-100">Cam #A82-OPT</span>
+</div>
+</div>
+<!-- Admin Internal Note Input -->
+<div class="flex flex-col space-y-1.5">
+<label class="text-[10px] font-bold text-clay-muted uppercase tracking-wider">Inspector Dispatch Note</label>
+<div class="flex items-center clay-inset-input rounded-2xl px-3.5 py-2.5">
+<span class="material-symbols-outlined text-clay-muted text-[18px] mr-2">edit_note</span>
+<input class="bg-transparent text-clay-dark text-[13px] font-medium focus:outline-none w-full" id="adminNote" type="text" value="Road crew scheduled for inspection"/>
+</div>
+</div>
+<!-- Decisive Action CTAs -->
+<div class="grid grid-cols-2 gap-3 pt-1">
+<button class="h-12 flex items-center justify-center gap-2 rounded-2xl clay-card text-clay-coral font-bold text-[13px] clay-btn" onclick="handleProvisionalAction('reject')" type="button">
+<span class="material-symbols-outlined text-[18px]">close</span>
+<span>Dismiss Pin</span>
+</button>
+<button class="h-12 flex items-center justify-center gap-2 rounded-2xl clay-btn-primary font-bold text-[13px] tracking-wide" onclick="handleProvisionalAction('approve')" type="button">
+<span class="material-symbols-outlined text-[18px]">verified</span>
+<span>Approve &amp; Broadcast</span>
+</button>
+</div>
+</section>
+<!-- SECTION 2: Community Consensus & Live Verification Fence Queue -->
+<section class="clay-card rounded-3xl p-4 space-y-3.5">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-2">
+<div class="w-8 h-8 rounded-xl bg-indigo-50 flex items-center justify-center clay-badge">
+<span class="material-symbols-outlined text-clay-accent text-[20px]">how_to_vote</span>
+</div>
+<span class="text-[15px] font-bold text-clay-dark">Community Consensus</span>
+</div>
+<span class="text-[10px] font-bold text-clay-muted bg-slate-100 border border-slate-200/70 px-2.5 py-1 rounded-full clay-badge">FENCE: &lt;500m</span>
+</div>
+<!-- Consensus Rule Explainer Banner -->
+<div class="flex items-center justify-around p-2.5 clay-subcard rounded-2xl">
+<div class="flex items-center gap-2">
+<div class="w-5 h-5 rounded-full bg-emerald-100 flex items-center justify-center clay-badge">
+<span class="material-symbols-outlined text-emerald-600 text-[13px]">check</span>
+</div>
+<span class="text-[11px] font-medium text-clay-dark"><strong class="text-emerald-600 font-bold">3 Positive</strong> = Verified Pin</span>
+</div>
+<span class="text-slate-300">|</span>
+<div class="flex items-center gap-2">
+<div class="w-5 h-5 rounded-full bg-rose-100 flex items-center justify-center clay-badge">
+<span class="material-symbols-outlined text-rose-600 text-[13px]">flag</span>
+</div>
+<span class="text-[11px] font-medium text-clay-dark"><strong class="text-rose-600 font-bold">2 Negative</strong> = Dismissed</span>
+</div>
+</div>
+<!-- Verification Live Card 1 -->
+<div class="clay-subcard rounded-2xl p-3.5 space-y-2.5 border border-slate-100" id="queueCard1">
+<div class="flex items-start justify-between">
+<div class="flex flex-col min-w-0 pr-2">
+<div class="flex items-center gap-2 flex-wrap">
+<span class="text-[13px] font-bold text-clay-dark">Old Airport Road - HAL Junction</span>
+<span class="text-[10px] font-bold px-2 py-0.5 bg-amber-100 text-amber-800 rounded-full clay-badge">Speedbreaker</span>
+</div>
+<span class="text-[11px] font-medium text-clay-muted mt-0.5">Unmarked asphalt ridge • 1.9g impact</span>
+</div>
+<span class="text-[10px] font-bold text-clay-accent bg-indigo-50 px-2.5 py-1 rounded-full clay-badge shrink-0">120m away</span>
+</div>
+<div class="flex items-center justify-between pt-1">
+<div class="flex items-center gap-2">
+<span class="text-[10px] font-bold text-clay-muted">REPORTER TRUST</span>
+<div class="w-16 h-2.5 rounded-full clay-inset-input overflow-hidden p-0.5">
+<div class="w-4/5 h-full rounded-full bg-indigo-500"></div>
+</div>
+<span class="text-[11px] font-bold text-clay-dark">92%</span>
+</div>
+<!-- Consensus Micro-Action -->
+<div class="flex items-center gap-2">
+<button class="h-9 px-3 rounded-xl clay-card text-emerald-600 flex items-center gap-1 font-bold text-[12px] clay-btn" onclick="votePin('queueCard1', 'up')" type="button">
+<span class="material-symbols-outlined text-[16px]">thumb_up</span>
+<span id="upvote1">2</span>
+</button>
+<button class="h-9 px-3 rounded-xl clay-card text-clay-muted hover:text-rose-600 flex items-center gap-1 font-bold text-[12px] clay-btn" onclick="votePin('queueCard1', 'down')" type="button">
+<span class="material-symbols-outlined text-[16px]">thumb_down</span>
+<span id="downvote1">0</span>
+</button>
+</div>
+</div>
+</div>
+<!-- Verification Live Card 2 -->
+<div class="clay-subcard rounded-2xl p-3.5 space-y-2.5 border border-slate-100" id="queueCard2">
+<div class="flex items-start justify-between">
+<div class="flex flex-col min-w-0 pr-2">
+<div class="flex items-center gap-2 flex-wrap">
+<span class="text-[13px] font-bold text-clay-dark">Koramangala 80ft Road</span>
+<span class="text-[10px] font-bold px-2 py-0.5 bg-sky-100 text-sky-800 rounded-full clay-badge">Metal Plate</span>
+</div>
+<span class="text-[11px] font-medium text-clay-muted mt-0.5">Slippery storm grate sinkhole</span>
+</div>
+<span class="text-[10px] font-bold text-clay-accent bg-indigo-50 px-2.5 py-1 rounded-full clay-badge shrink-0">340m away</span>
+</div>
+<div class="flex items-center justify-between pt-1">
+<div class="flex items-center gap-2">
+<span class="text-[10px] font-bold text-clay-muted">REPORTER TRUST</span>
+<div class="w-16 h-2.5 rounded-full clay-inset-input overflow-hidden p-0.5">
+<div class="w-3/5 h-full rounded-full bg-clay-amber"></div>
+</div>
+<span class="text-[11px] font-bold text-clay-dark">78%</span>
+</div>
+<div class="flex items-center gap-2">
+<button class="h-9 px-3 rounded-xl clay-card text-emerald-600 flex items-center gap-1 font-bold text-[12px] clay-btn" onclick="votePin('queueCard2', 'up')" type="button">
+<span class="material-symbols-outlined text-[16px]">thumb_up</span>
+<span id="upvote2">1</span>
+</button>
+<button class="h-9 px-3 rounded-xl clay-card text-clay-muted hover:text-rose-600 flex items-center gap-1 font-bold text-[12px] clay-btn" onclick="votePin('queueCard2', 'down')" type="button">
+<span class="material-symbols-outlined text-[16px]">thumb_down</span>
+<span id="downvote2">1</span>
+</button>
+</div>
+</div>
+</div>
+</section>
+<!-- SECTION 3: Official Municipal Grievance Report Generator -->
+<section class="clay-card rounded-3xl p-4 space-y-3.5">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-2">
+<div class="w-8 h-8 rounded-xl bg-amber-50 flex items-center justify-center clay-badge">
+<span class="material-symbols-outlined text-clay-amber text-[20px]">account_balance</span>
+</div>
+<span class="text-[15px] font-bold text-clay-dark">Municipal Grievance Export</span>
+</div>
+<span class="text-[10px] font-bold text-clay-muted bg-slate-100 border border-slate-200/80 px-2.5 py-1 rounded-full clay-badge">OFFICIAL FORM</span>
+</div>
+<!-- Official Preview Card -->
+<div class="clay-subcard rounded-2xl p-3.5 space-y-3 border border-slate-200/70">
+<div class="flex items-start justify-between">
+<div>
+<span class="text-[10px] font-bold text-clay-accent uppercase tracking-wider">CIVIC ACTION COMPLAINT</span>
+<div class="text-[16px] font-extrabold text-clay-dark">#RB-2026-8841</div>
+</div>
+<div class="w-8 h-8 rounded-xl bg-white clay-card flex items-center justify-center text-clay-accent">
+<span class="material-symbols-outlined text-[20px]">verified_user</span>
+</div>
+</div>
+<div class="space-y-0.5">
+<span class="text-[10px] font-bold text-clay-muted uppercase tracking-wider">RECIPIENT AUTHORITY</span>
+<div class="text-[12px] font-bold text-clay-dark">Bruhat Bengaluru Mahanagara Palike (BBMP)</div>
+<div class="text-[11px] font-medium text-clay-muted">Road Infrastructure Division • East Zone Ward 112</div>
+</div>
+<!-- Telemetry Matrix Grid -->
+<div class="grid grid-cols-2 gap-2 pt-1">
+<div class="clay-card p-2.5 rounded-xl">
+<span class="text-[10px] font-bold text-clay-muted block">SEVERITY GRADE</span>
+<div class="text-[14px] font-extrabold text-rose-600 flex items-center gap-1 mt-0.5">
+<span>Critical</span>
+<span class="text-[11px] font-medium text-clay-muted">(2.8g)</span>
+</div>
+</div>
+<div class="clay-card p-2.5 rounded-xl">
+<span class="text-[10px] font-bold text-clay-muted block">CONSENSUS DENSITY</span>
+<div class="text-[13px] font-extrabold text-clay-accent mt-0.5">6 Verified Riders</div>
+</div>
+<div class="clay-card p-2.5 rounded-xl">
+<span class="text-[10px] font-bold text-clay-muted block">SPEED AT PEAK</span>
+<div class="text-[13px] font-extrabold text-clay-dark mt-0.5">44 km/h</div>
+</div>
+<div class="clay-card p-2.5 rounded-xl">
+<span class="text-[10px] font-bold text-clay-muted block">GEOHASH / ANCHOR</span>
+<div class="text-[13px] font-extrabold text-clay-amber mt-0.5">tdruw8k2</div>
+</div>
+</div>
+<!-- Geotagged Photo Verification Stamp -->
+<div class="relative w-full h-28 rounded-xl overflow-hidden mt-1 border border-slate-200">
+<img class="w-full h-full object-cover" data-alt="High resolution urban infrastructure documentary photograph of street surface deformation with red digital boundary overlay and timestamp." src="https://lh3.googleusercontent.com/aida-public/AB6AXuA-00xVVIWvxt0aBH_ap1H9sieIdhw2ZY0WHtHx03URrLiK49ppZ_MoXj8K2yXDr_yKeQCedoASeH0buLlKlj-Dfhc0nNH__HO53UU2yuzhW4_--Ff7fZWIhZP-fNrFdyyWb2YnsDg7i7q-TelxJHirnTfIo3yPcDKj6CoViCm6TZ9vlV5mrDNVHU-6QIXoEG796D93YcLzX6n0y2rqFDCKQbQ5Gjp0GTPwNLWeoQyr"/>
+<div class="absolute inset-0 bg-gradient-to-t from-slate-900/80 via-transparent to-transparent flex items-end p-2.5">
+<span class="text-[10px] font-semibold text-white tracking-wide">DIGITAL AUDIT STAMP: UTC 2026-03-29 14:22:04</span>
+</div>
+</div>
+</div>
+<!-- Grievance Dispatch Actions (Clay Pills) -->
+<div class="grid grid-cols-2 gap-2.5 pt-1">
+<button class="h-11 flex items-center justify-center gap-2 rounded-2xl clay-card text-clay-dark font-bold text-[12px] clay-btn" onclick="triggerExport('PDF Generated &amp; Ready for Municipal Email')" type="button">
+<span class="material-symbols-outlined text-rose-500 text-[18px]">picture_as_pdf</span>
+<span>Export PDF</span>
+</button>
+<button class="h-11 flex items-center justify-center gap-2 rounded-2xl clay-btn-indigo font-bold text-[12px] clay-btn" onclick="triggerExport('Direct Email dispatched to ward112.bbmp@gov.in')" type="button">
+<span class="material-symbols-outlined text-white text-[18px]">send</span>
+<span>Send to Ward</span>
+</button>
+<button class="h-11 flex items-center justify-center gap-2 rounded-2xl clay-card text-clay-dark font-bold text-[12px] clay-btn" onclick="triggerExport('JSON Payload Copied to Clipboard')" type="button">
+<span class="material-symbols-outlined text-clay-muted text-[18px]">code</span>
+<span>Copy Webhook</span>
+</button>
+<button class="h-11 flex items-center justify-center gap-2 rounded-2xl clay-card text-clay-dark font-bold text-[12px] clay-btn" onclick="triggerExport('Batch CSV Exported (42 events compiled)')" type="button">
+<span class="material-symbols-outlined text-clay-amber text-[18px]">table_view</span>
+<span>Batch CSV</span>
+</button>
+</div>
+</section>
+<!-- SECTION 4: Database Sync & Connectivity Telemetry -->
+<section class="clay-card rounded-3xl p-4 space-y-3">
+<div class="flex items-center justify-between">
+<span class="text-[10px] font-bold text-clay-muted uppercase tracking-wider">System Sync Infrastructure</span>
+<span class="flex items-center gap-1.5 text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full clay-badge">
+<span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+            HEALTHY
+          </span>
+</div>
+<div class="grid grid-cols-3 gap-2.5">
+<!-- SQLite Local -->
+<div class="clay-subcard p-2.5 rounded-2xl flex flex-col space-y-0.5 border border-slate-100">
+<div class="flex items-center gap-1 text-clay-muted">
+<span class="material-symbols-outlined text-[15px]">storage</span>
+<span class="text-[9px] font-bold uppercase">ROOM DB</span>
+</div>
+<span class="text-[16px] font-extrabold text-clay-dark">42</span>
+<span class="text-[10px] font-medium text-clay-muted">Local Events</span>
+</div>
+<!-- Firestore -->
+<div class="clay-subcard p-2.5 rounded-2xl flex flex-col space-y-0.5 border border-slate-100">
+<div class="flex items-center gap-1 text-clay-accent">
+<span class="material-symbols-outlined text-[15px]">cloud_sync</span>
+<span class="text-[9px] font-bold uppercase">FIRESTORE</span>
+</div>
+<span class="text-[16px] font-extrabold text-clay-accent">&lt;120ms</span>
+<span class="text-[10px] font-medium text-clay-muted">Live Synced</span>
+</div>
+<!-- Cloud Storage -->
+<div class="clay-subcard p-2.5 rounded-2xl flex flex-col space-y-0.5 border border-slate-100">
+<div class="flex items-center gap-1 text-clay-amber">
+<span class="material-symbols-outlined text-[15px]">cloud_done</span>
+<span class="text-[9px] font-bold uppercase">STORAGE</span>
+</div>
+<span class="text-[16px] font-extrabold text-clay-amber">Online</span>
+<span class="text-[10px] font-medium text-clay-muted">Blob Assets</span>
+</div>
+</div>
+</section>
+</div>
+</main>
+<!-- Bottom Clay Navigation Bar -->
+<nav class="fixed bottom-0 w-full z-50 pb-safe clay-nav">
+<div class="flex items-center justify-around h-16 px-2">
+<a class="flex flex-col items-center justify-center gap-0.5 min-w-[54px] h-12 rounded-2xl text-clay-muted hover:text-clay-dark transition-all active:scale-95" data-path="telemetry" href="#">
+<span class="material-symbols-outlined text-[22px]">speed</span>
+<span class="text-[10px] font-semibold">HUD</span>
+</a>
+<a class="flex flex-col items-center justify-center gap-0.5 min-w-[54px] h-12 rounded-2xl text-clay-muted hover:text-clay-dark transition-all active:scale-95" data-path="hazard-map" href="#">
+<span class="material-symbols-outlined text-[22px]">explore</span>
+<span class="text-[10px] font-semibold">Map</span>
+</a>
+<a class="flex flex-col items-center justify-center gap-0.5 min-w-[54px] h-12 rounded-2xl text-clay-muted hover:text-clay-dark transition-all active:scale-95" data-path="report" href="#">
+<span class="material-symbols-outlined text-[22px]">photo_camera</span>
+<span class="text-[10px] font-semibold">Report</span>
+</a>
+<a class="flex flex-col items-center justify-center gap-0.5 min-w-[54px] h-12 rounded-2xl text-clay-muted hover:text-clay-dark transition-all active:scale-95" data-path="calibrate" href="#">
+<span class="material-symbols-outlined text-[22px]">tune</span>
+<span class="text-[10px] font-semibold">Sensor</span>
+</a>
+<!-- Civic Active Tab -->
+<a aria-current="page" class="flex flex-col items-center justify-center gap-0.5 min-w-[54px] h-12 rounded-2xl clay-nav-active text-clay-accent transition-all" data-path="admin-&amp;-civic" href="#">
+<span class="material-symbols-outlined text-[22px] font-bold">policy</span>
+<span class="text-[10px] font-bold tracking-tight">Civic</span>
+</a>
+</div>
+</nav>
+<script>
+    function showToast(title, msg, icon = 'info') {
+      const toast = document.getElementById('toastNotification');
+      const tTitle = document.getElementById('toastTitle');
+      const tMsg = document.getElementById('toastMsg');
+      const tIcon = document.getElementById('toastIcon');
+
+      if (!toast || !tTitle || !tMsg || !tIcon) return;
+
+      tTitle.innerText = title;
+      tMsg.innerText = msg;
+      tIcon.innerText = icon;
+
+      toast.classList.remove('opacity-0', '-translate-y-28');
+      toast.classList.add('opacity-100', 'translate-y-0');
+
+      setTimeout(() => {
+        toast.classList.add('opacity-0', '-translate-y-28');
+        toast.classList.remove('opacity-100', 'translate-y-0');
+      }, 2800);
+    }
+
+    function handleProvisionalAction(action) {
+      const card = document.getElementById('hazardCard');
+      const noteInput = document.getElementById('adminNote');
+      const note = noteInput ? noteInput.value : '';
+
+      if (action === 'approve') {
+        showToast('Approved & Broadcasted', 'Hazard pushed to live drivers HUD with note: "' + note + '"', 'verified');
+        if (card) {
+          card.style.transition = 'all 0.4s ease';
+          card.style.opacity = '0.4';
+          card.style.pointerEvents = 'none';
+        }
+      } else {
+        showToast('Provisional Pin Dismissed', 'Event marked as transient false-positive', 'cancel');
+        if (card) {
+          card.style.transition = 'all 0.4s ease';
+          card.style.opacity = '0.35';
+          card.style.pointerEvents = 'none';
+        }
+      }
+    }
+
+    function votePin(cardId, type) {
+      if (cardId === 'queueCard1') {
+        const up = document.getElementById('upvote1');
+        if (type === 'up') {
+          up.innerText = parseInt(up.innerText) + 1;
+          showToast('Threshold Met', 'Old Airport Road reached 3 votes. Status promoted to VERIFIED!', 'verified');
+          const c = document.getElementById('queueCard1');
+          if (c) c.classList.add('bg-emerald-50', 'border-emerald-200');
+        } else {
+          showToast('Downvoted', 'Flag recorded for validation verification fence', 'flag');
+        }
+      } else if (cardId === 'queueCard2') {
+        const up = document.getElementById('upvote2');
+        if (type === 'up') {
+          up.innerText = parseInt(up.innerText) + 1;
+          showToast('Consensus Recorded', 'Positive community confirmation logged', 'thumb_up');
+        } else {
+          const down = document.getElementById('downvote2');
+          down.innerText = parseInt(down.innerText) + 1;
+          showToast('Flag Threshold Warning', 'Koramangala 80ft Road has reached 2 negative votes. Unverified.', 'report');
+          const c2 = document.getElementById('queueCard2');
+          if (c2) c2.classList.add('opacity-60');
+        }
+      }
+    }
+
+    function triggerExport(message) {
+      showToast('Civic Dispatch', message, 'task_alt');
+    }
+  </script>
+</body></html>
