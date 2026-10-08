@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { api } from './api';
+import { sensorEngine } from './services/sensorEngine';
 import HudScreen from './screens/HudScreen';
 import MapScreen from './screens/MapScreen';
 import ReportScreen from './screens/ReportScreen';
@@ -14,17 +15,40 @@ export default function App() {
   const [showUsbModal, setShowUsbModal] = useState(false);
   const [customHost, setCustomHost] = useState(api.getBaseUrl());
   const [networkInfo, setNetworkInfo] = useState(null);
+  const [newCivicTicket, setNewCivicTicket] = useState(null);
 
   const showToast = (msg) => {
     setToastMessage(msg);
     setTimeout(() => setToastMessage(null), 3500);
   };
 
+  const handleReportToCivic = (ticket) => {
+    setNewCivicTicket(ticket);
+    setActiveTab('civic');
+    showToast('🏛️ Converted to Civic Work Order! Switched to Civic Control Center.');
+  };
+
   useEffect(() => {
+    sensorEngine.init();
+
     api.getNetworkInfo().then(info => {
       if (info) setNetworkInfo(info);
     });
-  }, []);
+
+    const onAutoHazard = (e) => {
+      showToast(`🚨 AUTO-DETECTED: ${e.detail.type?.toUpperCase()} (${e.detail.severity}) — Registered in MongoDB!`);
+      if (nightFlashActive) {
+        // Pulse screen flash
+        setEmergencyAlertActive(true);
+        setTimeout(() => setEmergencyAlertActive(false), 2000);
+      }
+    };
+    window.addEventListener('roadbump:autoHazardDetected', onAutoHazard);
+
+    return () => {
+      window.removeEventListener('roadbump:autoHazardDetected', onAutoHazard);
+    };
+  }, [nightFlashActive]);
 
   const handleFlashToggle = () => {
     const next = !nightFlashActive;
@@ -126,12 +150,19 @@ export default function App() {
             onToast={showToast}
           />
         )}
-        {activeTab === 'report' && <ReportScreen onToast={showToast} />}
+        {activeTab === 'report' && (
+          <ReportScreen
+            onToast={showToast}
+            onNavigateToCivic={handleReportToCivic}
+            onReportSubmitted={(pin) => showToast(`Report RB-${pin?.id || '9021'} logged in database.`)}
+          />
+        )}
         {activeTab === 'sensor' && <SensorScreen onToast={showToast} />}
         {activeTab === 'civic' && (
           <CivicScreen
             onToast={showToast}
             onOpenUsbModal={() => setShowUsbModal(true)}
+            initialTicket={newCivicTicket}
           />
         )}
       </main>

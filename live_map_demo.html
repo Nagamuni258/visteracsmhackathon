@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>RoadBump Live Hazard Map Demo</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        #map { height: 100vh; }
+        #info-panel {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            z-index: 1000;
+            max-width: 300px;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+        .pin-info {
+            margin-bottom: 10px;
+            padding: 10px;
+            border-left: 4px solid #ddd;
+        }
+        .pin-type { font-weight: bold; text-transform: capitalize; }
+        .pin-severity {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-right: 8px;
+            vertical-align: middle;
+        }
+        .severity-minor { background-color: #10b981; } /* green */
+        .severity-moderate { background-color: #f59e0b; } /* amber */
+        .severity-severe { background-color: #ef4444; } /* red */
+        .severity-critical { background-color: #7f1d1d; } /* dark red */
+        .pin-status { font-size: 0.9em; opacity: 0.8; }
+        .last-updated { font-size: 0.8em; color: #666; margin-top: 10px; padding-top: 10px; border-top: 1px solid #eee; }
+        .loading { text-align: center; padding: 20px; color: #666; }
+        .update-count { background: #3b82f6; color: white; padding: 2px 6px; border-radius: 3px; font-size: 0.8em; }
+    </style>
+</head>
+<body>
+    <div id="map"></div>
+    <div id="info-panel">
+        <h3>Live Hazard Updates</h3>
+        <div id="stats">
+            <span id="total-pins">0</span> total pins
+            <span class="update-count" id="update-count">0</span> updates
+        </div>
+        <div id="pins-list"></div>
+        <div class="last-updated" id="last-updated">Last updated: --</div>
+    </div>
+
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        // Initialize map centered on Hyderabad (from our test data)
+        const map = L.map('map').setView([17.438, 78.354], 13);
+
+        // Add OpenStreetMap tile layer
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        }).addTo(map);
+
+        // Severity to color mapping
+        const severityColors = {
+            'Minor': '#10b981',      // green
+            'Moderate': '#f59e0b',   // amber
+            'Severe': '#ef4444',     // red
+            'Critical': '#7f1d1d'    // dark red
+        };
+
+        // Hazard type to icon mapping (using circle markers for simplicity)
+        const getMarkerOptions = (pin) => {
+            return {
+                radius: 8,
+                fillColor: severityColors[pin.severity] || '#6b7280',
+                color: '#fff',
+                weight: 2,
+                opacity: 1,
+                fillOpacity: 0.8
+            };
+        };
+
+        // Create popup content for a pin
+        const createPopupContent = (pin) => {
+            return `
+                <div style="min-width: 200px;">
+                    <h4>${pin.type.charAt(0).toUpperCase() + pin.type.slice(1)} Hazard</h4>
+                    <p><strong>Severity:</strong> <span style="color: ${severityColors[pin.severity] || '#6b7280'};">${pin.severity}</span></p>
+                    <p><strong>Status:</strong> <span class="pin-status">${pin.status}</span></p>
+                    <p><strong>Confirmations:</strong> ${pin.confirmations} | <strong>Rejections:</strong> ${pin.rejections}</p>
+                    <p><strong>Reported:</strong> ${new Date(pin.createdAt).toLocaleString()}</p>
+                    ${pin.photoUrl ? `<p><strong>Photo:</strong> <a href="${pin.photoUrl}" target="_blank">View Evidence</a></p>` : ''}
+                    <p><small>ID: ${pin.id}</small></p>
+                </div>
+            `;
+        };
+
+        // Store current pins to detect updates
+        let currentPins = new Map();
+        let updateCount = 0;
+        let lastUpdateTime = null;
+
+        // Update the info panel
+        const updateInfoPanel = () => {
+            document.getElementById('total-pins').textContent = currentPins.size;
+            document.getElementById('update-count').textContent = updateCount;
+            document.getElementById('last-updated').textContent =
+                lastUpdateTime ? `Last updated: ${lastUpdateTime.toLocaleTimeString()}` : 'Last updated: --';
+
+            // Update pins list
+            const pinsList = document.getElementById('pins-list');
+            pinsList.innerHTML = '';
+
+            // Show recent pins (limit to 10 for performance)
+            const recentPins = Array.from(currentPins.values())
+                .sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt))
+                .slice(0, 10);
+
+            recentPins.forEach(pin => {
+                const pinDiv = document.createElement('div');
+                pinDiv.className = 'pin-info';
+                pinDiv.innerHTML = `
+                    <div>
+                        <span class="pin-type">${pin.type}</span>
+                        <span class="pin-severity severity-${pin.severity.toLowerCase()}"></span>
+                        <span>${pin.status}</span>
+                    </div>
+                    <small>${new Date(pin.updatedAt).toLocaleTimeString()}</small>
+                `;
+                pinsList.appendChild(pinDiv);
+            });
+        };
+
+        // Fetch pins from backend and update map
+        const fetchAndUpdatePins = async () => {
+            try {
+                const response = await fetch('http://localhost:5000/api/pins');
+                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+
+                const data = await response.json();
+                if (!data.success || !data.data) throw new Error('Invalid response format');
+
+                const newPins = new Map();
+                data.data.forEach(pin => newPins.set(pin.id, pin));
+
+                // Check for updates
+                let hasUpdates = false;
+                newPins.forEach((newPin, id) => {
+                    const oldPin = currentPins.get(id);
+                    if (!oldPin ||
+                        oldPin.status !== newPin.status ||
+                        oldPin.confirmations !== newPin.confirmations ||
+                        oldPin.rejections !== newPin.rejections) {
+                        hasUpdates = true;
+                    }
+                });
+
+                // Clear existing markers
+                map.eachLayer((layer) => {
+                    if (layer instanceof L.CircleMarker) {
+                        map.removeLayer(layer);
+                    }
+                });
+
+                // Add markers for all current pins
+                newPins.forEach((pin) => {
+                    const marker = L.circleMarker([pin.latitude, pin.longitude], getMarkerOptions(pin))
+                        .bindPopup(createPopupContent(pin))
+                        .addTo(map);
+                });
+
+                // Update state if there were changes
+                if (hasUpdates || currentPins.size !== newPins.size) {
+                    currentPins = newPins;
+                    updateCount++;
+                    lastUpdateTime = new Date();
+                    updateInfoPanel();
+                }
+
+            } catch (error) {
+                console.error('Error fetching pins:', error);
+                // Show error in UI
+                document.getElementById('info-panel').insertAdjacentHTML('beforeend',
+                    `<div class="loading" style="color: #ef4444;">Error: ${error.message}</div>`);
+            }
+        };
+
+        // Initial load
+        fetchAndUpdatePins().then(() => {
+            // Set up periodic updates (every 3 seconds)
+            setInterval(fetchAndUpdatePins, 3000);
+        });
+
+        // Handle map clicks to get coordinates (for testing)
+        map.on('click', function(e) {
+            const lat = e.latlng.lat.toFixed(6);
+            const lng = e.latlng.lng.toFixed(6);
+            console.log(`Clicked at: ${lat}, ${lng}`);
+        });
+
+        // Add instructions
+        const instructions = L.control({position: 'bottomleft'});
+        instructions.onAdd = function(map) {
+            const div = L.DomUtil.create('div', 'info instructions');
+            div.innerHTML = `
+                <strong>Live Hazard Map Demo</strong><br/>
+                <small>Shows real-time updates from RoadBump API<br/>
+                Pins update every 3 seconds<br/>
+                Colors indicate severity:<br/>
+                &nbsp;&nbsp;<span class="pin-severity severity-minor"></span> Minor<br/>
+                &nbsp;&nbsp;<span class="pin-severity severity-moderate"></span> Moderate<br/>
+                &nbsp;&nbsp;<span class="pin-severity severity-severe"></span> Severe<br/>
+                &nbsp;&nbsp;<span class="pin-severity severity-critical"></span> Critical</small>
+            `;
+            return div;
+        };
+        instructions.addTo(map);
+    </script>
+</body>
+</html>

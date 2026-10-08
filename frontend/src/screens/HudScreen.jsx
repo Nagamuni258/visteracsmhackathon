@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { sensorEngine } from '../services/sensorEngine';
 
 export default function HudScreen({ onNavigateMap }) {
   const [eta, setEta] = useState(4);
@@ -6,28 +7,26 @@ export default function HudScreen({ onNavigateMap }) {
   const [peakG, setPeakG] = useState(2.85);
   const [speed, setSpeed] = useState(42);
   const [flashArmed, setFlashArmed] = useState(true);
+  const [hardwareLive, setHardwareLive] = useState(false);
 
-  // Micro-telemetry vibration
   useEffect(() => {
-    const timer = setInterval(() => {
-      const delta = (Math.random() * 0.08 - 0.04);
-      setGForce(prev => {
-        const next = Math.max(0.15, Math.min(1.8, +(parseFloat(prev) + delta).toFixed(2)));
-        if (next > peakG) setPeakG(next);
-        return next;
-      });
-      setSpeed(prev => Math.max(35, Math.min(55, prev + Math.floor(Math.random() * 3 - 1))));
-    }, 1200);
+    sensorEngine.init();
+    const unsubscribe = sensorEngine.subscribe((engineState) => {
+      setGForce(+(engineState.currentRms.toFixed(2)));
+      setPeakG(+(engineState.peakRms.toFixed(2)));
+      setSpeed(Math.round(engineState.speed));
+      setHardwareLive(engineState.hardwareAvailable);
+    });
 
     const etaTimer = setInterval(() => {
       setEta(prev => (prev > 1 ? prev - 1 : 6));
     }, 1000);
 
     return () => {
-      clearInterval(timer);
+      unsubscribe();
       clearInterval(etaTimer);
     };
-  }, [peakG]);
+  }, []);
 
   // Compute arc angle for SVG dial (from 24,120 to 216,120)
   // Max gForce 4.0G

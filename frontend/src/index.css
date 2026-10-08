@@ -317,3 +317,29 @@ input[type=range].clay-slider::-webkit-slider-thumb:active {
   font-size: 16px;
   font-weight: 700;
 }
+
+/* Custom Leaflet Styling for Claymorphism Theme */
+.leaflet-popup-content-wrapper {
+  background: #ffffff !important;
+  border-radius: 1.25rem !important;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.15), 0 8px 10px -6px rgba(0, 0, 0, 0.1) !important;
+  padding: 0 !important;
+  overflow: hidden !important;
+  border: 1px solid rgba(255, 255, 255, 0.9) !important;
+}
+.leaflet-popup-content {
+  margin: 0 !important;
+  line-height: 1.4 !important;
+}
+.leaflet-popup-tip {
+  background: #ffffff !important;
+}
+.custom-hazard-pin {
+  background: transparent !important;
+  border: none !important;
+}
+.user-vehicle-pin {
+  background: transparent !important;
+  border: none !important;
+}
+

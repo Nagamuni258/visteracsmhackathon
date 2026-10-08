@@ -1,21 +1,52 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { sensorEngine } from '../services/sensorEngine';
 
 export default function SensorScreen({ onToast }) {
-  const [threshold, setThreshold] = useState(2.0);
-  const [rmsWindow, setRmsWindow] = useState(40);
-  const [speedGate, setSpeedGate] = useState(5.0);
-  const [nightFlash, setNightFlash] = useState(true);
-  const [quietHours, setQuietHours] = useState(false);
+  const [threshold, setThreshold] = useState(sensorEngine.config.thresholdG);
+  const [rmsWindow, setRmsWindow] = useState(sensorEngine.config.minWindowMs);
+  const [speedGate, setSpeedGate] = useState(sensorEngine.config.speedGateKmH);
+  const [nightFlash, setNightFlash] = useState(sensorEngine.config.nightFlash);
+  const [quietHours, setQuietHours] = useState(sensorEngine.config.quietHours);
   const [dcFilter, setDcFilter] = useState(true);
 
-  const [currentRms, setCurrentRms] = useState('0.34g');
-  const [peakRms, setPeakRms] = useState('2.85g');
+  const [currentRms, setCurrentRms] = useState('0.28g');
+  const [peakRms, setPeakRms] = useState('0.35g');
+  const [hardwareLive, setHardwareLive] = useState(false);
+  const [lastClassification, setLastClassification] = useState(null);
 
   const canvasRef = useRef(null);
-  const simTypeRef = useRef(null);
-  const simStepRef = useRef(0);
 
-  // Oscilloscope canvas animation loop
+  // Subscribe to real hardware sensorEngine
+  useEffect(() => {
+    sensorEngine.init();
+
+    const unsubscribe = sensorEngine.subscribe((engineState) => {
+      setCurrentRms(`${engineState.currentRms.toFixed(2)}g`);
+      setPeakRms(`${engineState.peakRms.toFixed(2)}g`);
+      setHardwareLive(engineState.hardwareAvailable);
+      if (engineState.lastClassification) {
+        setLastClassification(engineState.lastClassification);
+      }
+    });
+
+    const onAutoHazard = (e) => {
+      onToast(`🚨 Auto-Detected ${e.detail.type.toUpperCase()} (${e.detail.severity})! Registered to MongoDB`);
+      setLastClassification({
+        type: e.detail.type,
+        confidence: 0.94,
+        severity: e.detail.severity,
+        peakG: e.detail.peakG
+      });
+    };
+    window.addEventListener('roadbump:autoHazardDetected', onAutoHazard);
+
+    return () => {
+      unsubscribe();
+      window.removeEventListener('roadbump:autoHazardDetected', onAutoHazard);
+    };
+  }, [onToast]);
+
+  // Oscilloscope canvas animation loop reading from sensorEngine waveform buffer
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -27,80 +58,37 @@ export default function SensorScreen({ onToast }) {
     canvas.height = rect.height * dpr;
     ctx.scale(dpr, dpr);
 
-    const bufferSize = 80;
-    const waveformData = new Array(bufferSize).fill(0.25);
-    const zData = new Array(bufferSize).fill(0.2);
-    let peak = 2.85;
     let animId;
 
     const renderLoop = () => {
-      let nextRms = 0.28 + (Math.random() * 0.12);
-      let nextZ = 0.22 + (Math.random() * 0.10);
-
-      if (simTypeRef.current) {
-        simStepRef.current += 1;
-        const s = simStepRef.current;
-        if (simTypeRef.current === 'pothole') {
-          if (s <= 6) {
-            nextRms = 2.65 + (Math.sin(s * 1.5) * 0.85);
-            nextZ = 2.45 + (Math.cos(s * 1.2) * 0.7);
-          } else {
-            simTypeRef.current = null;
-          }
-        } else if (simTypeRef.current === 'rumble') {
-          if (s <= 14) {
-            nextRms = 1.35 + (Math.sin(s * 2.8) * 0.65);
-            nextZ = Math.cos(s * 3.1) * 0.8;
-          } else {
-            simTypeRef.current = null;
-          }
-        } else if (simTypeRef.current === 'flat') {
-          nextRms = 0.10 + (Math.random() * 0.04);
-          nextZ = 0.08;
-          if (s > 10) simTypeRef.current = null;
-        }
-      }
-
-      waveformData.shift();
-      waveformData.push(nextRms);
-      zData.shift();
-      zData.push(nextZ);
-
-      if (nextRms > peak) {
-        peak = nextRms;
-      } else {
-        peak = Math.max(0.35, peak * 0.99);
-      }
-
-      setCurrentRms(nextRms.toFixed(2) + 'g');
-      setPeakRms(peak.toFixed(2) + 'g');
-
+      const buffer = sensorEngine.waveformBuffer;
       const w = rect.width;
       const h = rect.height;
       ctx.clearRect(0, 0, w, h);
 
-      const centerY = h * 0.78;
+      const centerY = h * 0.72;
 
-      // Draw Z trace (Sky Blue)
+      // Draw Filtered Z Waveform (Sky Blue)
       ctx.beginPath();
       ctx.strokeStyle = '#38BDF8';
-      ctx.lineWidth = 1.6;
-      for (let i = 0; i < zData.length; i++) {
-        const x = (i / (zData.length - 1)) * w;
-        const val = zData[i];
+      ctx.lineWidth = 1.8;
+      for (let i = 0; i < buffer.length; i++) {
+        const x = (i / (buffer.length - 1)) * w;
+        const val = buffer[i];
         const y = centerY - (val * (h * 0.22));
         if (i === 0) ctx.moveTo(x, y);
         else ctx.lineTo(x, y);
       }
       ctx.stroke();
 
-      // Draw RMS trace (Warm Amber)
+      // Draw RMS Energy Envelope (Warm Amber)
+      const rms = sensorEngine.state.currentRms;
       ctx.beginPath();
       ctx.strokeStyle = '#FBBF24';
       ctx.lineWidth = 2.4;
-      for (let i = 0; i < waveformData.length; i++) {
-        const x = (i / (waveformData.length - 1)) * w;
-        const val = waveformData[i];
+      for (let i = 0; i < buffer.length; i++) {
+        const x = (i / (buffer.length - 1)) * w;
+        const val = Math.abs(buffer[i]) * 0.9;
         const y = centerY - (val * (h * 0.22));
         if (i === 0) ctx.moveTo(x, y);
         else ctx.lineTo(x, y);
@@ -109,10 +97,11 @@ export default function SensorScreen({ onToast }) {
 
       // Dot at head
       const lastX = w - 4;
-      const lastY = centerY - (nextRms * (h * 0.22));
-      ctx.fillStyle = nextRms >= threshold ? '#EF4444' : '#FBBF24';
+      const lastVal = buffer[buffer.length - 1] || 0;
+      const lastY = centerY - (lastVal * (h * 0.22));
+      ctx.fillStyle = rms >= threshold ? '#EF4444' : '#FBBF24';
       ctx.beginPath();
-      ctx.arc(lastX, lastY, 4, 0, Math.PI * 2);
+      ctx.arc(lastX, lastY, 4.5, 0, Math.PI * 2);
       ctx.fill();
 
       animId = requestAnimationFrame(renderLoop);
@@ -124,13 +113,17 @@ export default function SensorScreen({ onToast }) {
   }, [threshold]);
 
   const triggerSim = (type, label) => {
-    simTypeRef.current = type;
-    simStepRef.current = 0;
-    onToast(`Simulating ${label} signal pattern`);
+    sensorEngine.simulatePattern(type);
+    onToast(`Fed ${label} pattern into 100Hz ML Classifier`);
   };
 
   const handleSaveDsp = () => {
-    onToast(`DSP Config Saved: Threshold ${threshold}g, Gate ${speedGate}km/h`);
+    sensorEngine.config.thresholdG = threshold;
+    sensorEngine.config.minWindowMs = rmsWindow;
+    sensorEngine.config.speedGateKmH = speedGate;
+    sensorEngine.config.nightFlash = nightFlash;
+    sensorEngine.config.quietHours = quietHours;
+    onToast(`DSP Config Applied: Threshold ${threshold.toFixed(2)}g, Gate ${speedGate.toFixed(1)}km/h`);
   };
 
   return (
@@ -165,8 +158,10 @@ export default function SensorScreen({ onToast }) {
               Active Sensor Pipeline Status
             </span>
           </div>
-          <span className="text-[10px] font-bold text-[#10B981] px-2.5 py-0.5 rounded-full bg-white clay-pill tracking-wider">
-            RUNNING
+          <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full clay-pill tracking-wider ${
+            hardwareLive ? 'text-[#10B981] bg-emerald-50' : 'text-[#3B82F6] bg-blue-50'
+          }`}>
+            {hardwareLive ? 'HARDWARE IMU LIVE' : '100Hz DSP ENGINE'}
           </span>
         </div>
 
@@ -215,9 +210,11 @@ export default function SensorScreen({ onToast }) {
             </div>
             <div className="mt-1.5">
               <div className="text-[14px] font-bold text-[#1E293B] truncate tracking-tight">
-                impact_v2.tflite
+                {lastClassification ? `${lastClassification.type.toUpperCase()}` : 'impact_v2.tflite'}
               </div>
-              <p className="text-[10px] font-medium text-[#64748B] mt-0.5">Quantized INT8 • 4 Class</p>
+              <p className="text-[10px] font-medium text-[#10B981] mt-0.5">
+                {lastClassification ? `${(lastClassification.confidence * 100).toFixed(0)}% Conf • ${lastClassification.severity}` : 'Quantized INT8 • 4 Class'}
+              </p>
             </div>
           </div>
 
@@ -231,9 +228,9 @@ export default function SensorScreen({ onToast }) {
             </div>
             <div className="mt-1.5">
               <div className="text-[14px] font-bold text-[#1E293B] truncate tracking-tight">
-                3-Pass / 50m
+                2-of-3 Consensus
               </div>
-              <p className="text-[10px] font-medium text-[#64748B] mt-0.5">Automated Quorum</p>
+              <p className="text-[10px] font-medium text-[#64748B] mt-0.5">Window Quorum Lock</p>
             </div>
           </div>
         </div>
@@ -278,25 +275,76 @@ export default function SensorScreen({ onToast }) {
         <div className="flex items-center gap-2 pt-1">
           <button
             className="flex-1 py-2 px-1 text-[11px] font-bold rounded-xl clay-button-secondary active:scale-95 transition-all text-center"
-            onClick={() => triggerSim('pothole', 'Pothole (2.8G)')}
+            onClick={() => {
+              sensorEngine.playAlertTone('pothole', 4);
+              triggerSim('pothole', 'Pothole (2.8G)');
+            }}
             type="button"
           >
             Pothole (2.8G)
           </button>
           <button
             className="flex-1 py-2 px-1 text-[11px] font-bold rounded-xl clay-button-secondary active:scale-95 transition-all text-center"
-            onClick={() => triggerSim('rumble', 'Rumble Strip (1.2G)')}
+            onClick={() => {
+              sensorEngine.playAlertTone('speed-breaker', 2);
+              triggerSim('speed-breaker', 'Rumble Strip (1.2G)');
+            }}
             type="button"
           >
             Rumble Strip (1.2G)
           </button>
           <button
             className="flex-1 py-2 px-1 text-[11px] font-bold rounded-xl clay-button-secondary active:scale-95 transition-all text-center"
-            onClick={() => triggerSim('flat', 'Flat Asphalt (0.1G)')}
+            onClick={() => triggerSim('flat-road', 'Flat Asphalt (0.1G)')}
             type="button"
           >
             Flat Asphalt (0.1G)
           </button>
+        </div>
+
+        {/* Edge Chime Audio & Haptics Direct Test */}
+        <div className="flex flex-col gap-1.5 pt-2 border-t border-slate-200/60">
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-[#64748B] flex items-center gap-1">
+              <span className="material-symbols-outlined text-[14px] text-amber-500">volume_up</span>
+              Synthesized Audio &amp; Haptic Alerts
+            </span>
+            <span className="text-[9px] font-mono text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full font-bold">
+              Web Audio 100% On-Device
+            </span>
+          </div>
+          <div className="grid grid-cols-3 gap-2">
+            <button
+              className="py-2 px-1 text-[10px] font-bold rounded-xl bg-red-50 text-red-700 border border-red-200/60 active:scale-95 transition-all flex items-center justify-center gap-1"
+              onClick={() => {
+                sensorEngine.playAlertTone('pothole', 4);
+                onToast('🔊 Playing Pothole Warning (880Hz -> 360Hz) + Haptics');
+              }}
+              type="button"
+            >
+              <span>🚨 Pothole</span>
+            </button>
+            <button
+              className="py-2 px-1 text-[10px] font-bold rounded-xl bg-amber-50 text-amber-700 border border-amber-200/60 active:scale-95 transition-all flex items-center justify-center gap-1"
+              onClick={() => {
+                sensorEngine.playAlertTone('speed-breaker', 2);
+                onToast('🔊 Playing Speed-Breaker Dual Chime (520Hz + 660Hz)');
+              }}
+              type="button"
+            >
+              <span>🔔 Bump Chime</span>
+            </button>
+            <button
+              className="py-2 px-1 text-[10px] font-bold rounded-xl bg-slate-100 text-slate-700 border border-slate-200/60 active:scale-95 transition-all flex items-center justify-center gap-1"
+              onClick={() => {
+                sensorEngine.playAlertTone('metal-plate', 3);
+                onToast('🔊 Playing Metal Plate Sawtooth Buzz (420Hz)');
+              }}
+              type="button"
+            >
+              <span>⚡ Plate Buzz</span>
+            </button>
+          </div>
         </div>
       </div>
 

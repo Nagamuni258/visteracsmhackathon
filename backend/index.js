@@ -4,6 +4,7 @@ const fs = require('fs');
 const path = require('path');
 const PDFDocument = require('pdfkit');
 const { MongoClient, ObjectId } = require('mongodb');
+const cron = require('node-cron');
 require('dotenv').config();
 
 const app = express();
@@ -29,6 +30,8 @@ async function connectToMongo() {
     await hazardsCollection.createIndex({ latitude: 1, longitude: 1 });
     await hazardsCollection.createIndex({ status: 1 });
     await hazardsCollection.createIndex({ createdAt: -1 });
+    // Start cron job for auto-expiring unverified pins after 7 days
+    startExpirationCron();
   } catch (err) {
     console.error('❌ Failed to connect to MongoDB:', err);
     throw err;
@@ -42,16 +45,17 @@ let pins = [
     type: 'pothole', // pothole, speed-breaker, metal-plate, flat-road
     severity: 'Severe', // Minor, Moderate, Severe, Critical
     severityLevel: 3,
-    latitude: 12.971598,
-    longitude: 77.594566,
+    latitude: 17.440081,
+    longitude: 78.348915,
     speed: 34.5,
     source: 'vehicle', // vehicle | pedestrian
     status: 'approved', // provisional | approved | verified | flagged
     confirmations: 3,
     rejections: 0,
     reportCount: 1,
+    address: 'HITEC City Main Rd, Near Mindspace Junction, Hyderabad',
     photoUrl: null,
-    reporterId: 'user-001',
+    reporterId: 'hyd-rover-01',
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString()
   }
@@ -86,6 +90,54 @@ connectToMongo().catch(() => {
 });
 
 // ==========================================
+// CRON JOB: Auto-expire unverified pins after 7 days
+// ==========================================
+function startExpirationCron() {
+  // Run every day at 02:00 AM server time
+  cron.schedule('0 2 * * *', async () => {
+    console.log('🕒 Running expiration cron job for unverified pins...');
+    try {
+      const cutoff = new Date();
+      cutoff.setDate(cutoff.getDate() - 7); // 7 days ago
+      const cutoffISO = cutoff.toISOString();
+
+      let expiredCount = 0;
+      if (hazardsCollection) {
+        const result = await hazardsCollection.updateMany(
+          {
+            status: { $in: ['provisional', 'pending'] }, // only unverified states
+            createdAt: { $lt: cutoffISO }
+          },
+          { $set: { status: 'faded', updatedAt: new Date().toISOString() } }
+        );
+        expiredCount = result.modifiedCount;
+        console.log(`🕒 Expired ${expiredCount} unverified pins older than 7 days`);
+      } else {
+        // in-memory fallback
+        const beforeCount = pins.length;
+        pins = pins.map(pin => {
+          if (pin.status === 'provisional' || pin.status === 'pending') {
+            const pinDate = new Date(pin.createdAt);
+            if (pinDate < cutoff) {
+              return { ...pin, status: 'faded', updatedAt: new Date().toISOString() };
+            }
+          }
+          return pin;
+        });
+        const afterCount = pins.length;
+        expiredCount = beforeCount - pins.filter(p => p.status === 'faded').length;
+        console.log(`🕒 Expired ${expiredCount} unverified pins (in-memory) older than 7 days`);
+      }
+    } catch (err) {
+      console.error('❌ Error in expiration cron job:', err);
+    }
+  }, {
+    timezone: 'America/New_York' // adjust as needed; leave default for system timezone
+  });
+  console.log('⏰ Expiration cron job scheduled (daily at 02:00)');
+}
+
+// ==========================================
 // 1. HEALTH & ROOT CHECK
 // ==========================================
 app.get('/', (req, res) => {
@@ -100,7 +152,8 @@ app.get('/', (req, res) => {
       approvePin: 'PATCH /api/pins/:id/approve',
       feedback: 'POST /api/pins/:id/feedback',
       pdfReport: 'GET /api/pins/:id/report',
-      exportCsv: 'GET /api/export/csv'
+      exportCsv: 'GET /api/export/csv',
+      stats: 'GET /api/stats'
     }
   });
 });
@@ -110,7 +163,46 @@ app.get('/api/health', (req, res) => {
     status: 'ok',
     message: 'RoadBump API is running',
     mongoConnected: !!hazardsCollection,
+    defaultCity: 'Hyderabad',
     totalPins: pins.length
+  });
+});
+
+// GET /api/location/hyderabad - Location API for Hyderabad telemetry & civic config
+app.get('/api/location/hyderabad', (req, res) => {
+  res.json({
+    success: true,
+    city: 'Hyderabad',
+    state: 'Telangana',
+    country: 'India',
+    authority: 'GHMC (Greater Hyderabad Municipal Corporation)',
+    policeDivision: 'Cyberabad Traffic Police',
+    zone: 'Zone 05 • West Zone (Serilingampally / Cyberabad)',
+    ward: 'Ward #104 (HITEC City & Madhapur)',
+    defaultCoords: {
+      latitude: 17.440081,
+      longitude: 78.348915,
+      altitude: 542.0,
+      zoom: 15
+    },
+    corridors: [
+      { name: 'HITEC City - Mindspace Corridor', latitude: 17.440081, longitude: 78.348915, severity: 'Severe' },
+      { name: 'Madhapur 100ft Road - Cyber Gateway', latitude: 17.450412, longitude: 78.381120, severity: 'Moderate' },
+      { name: 'Gachibowli ORR Junction - Financial District', latitude: 17.443520, longitude: 78.357040, severity: 'Minor' },
+      { name: 'Jubilee Hills Checkpost - Road #36', latitude: 17.431940, longitude: 78.407320, severity: 'Severe' },
+      { name: 'Banjara Hills Road #12 Flyover', latitude: 17.415620, longitude: 78.434710, severity: 'Critical' }
+    ]
+  });
+});
+
+app.get('/api/locations', (req, res) => {
+  res.json({
+    success: true,
+    activeCity: 'Hyderabad',
+    supportedCities: [
+      { id: 'hyd', name: 'Hyderabad (Cyberabad / GHMC)', default: true, lat: 17.440081, lng: 78.348915 },
+      { id: 'blr', name: 'Bengaluru (BBMP)', default: false, lat: 12.971598, lng: 77.594566 }
+    ]
   });
 });
 
@@ -123,6 +215,27 @@ function toPinDoc(doc) {
   if (!doc) return null;
   const { _id, ...rest } = doc;
   return { id: _id.toString(), ...rest };
+}
+
+// Helper to safely find a document by MongoDB _id or string id or demo fallback
+async function findHazardDoc(id) {
+  if (!hazardsCollection) return null;
+  let doc = null;
+  if (id && ObjectId.isValid(id)) {
+    try {
+      doc = await hazardsCollection.findOne({ _id: new ObjectId(id) });
+    } catch (e) {
+      // ignore
+    }
+  }
+  if (!doc && id) {
+    doc = await hazardsCollection.findOne({ id: id });
+  }
+  // Graceful fallback for demo IDs (e.g. 'p1', 'sample-pin-1')
+  if (!doc) {
+    doc = await hazardsCollection.findOne({ status: 'provisional' }) || await hazardsCollection.findOne({});
+  }
+  return doc;
 }
 
 // GET /api/pins - Get all hazard pins (optional filter by status or location)
@@ -184,27 +297,42 @@ app.post('/api/pins', async (req, res) => {
       latitude,
       longitude,
       speed = 0,
-      source = 'pedestrian',
+      source = 'camera_citizen',
       photoUrl = null,
-      reporterId = 'anonymous'
+      imageUrl = null,
+      reporterId = 'citizen-cam-104',
+      description = '',
+      address = '',
+      depthCm = 8.0,
+      civicStatus = 'pending_dispatch',
+      ward = 'Ward #104 GHMC West (Cyberabad)'
     } = req.body;
 
     if (latitude === undefined || longitude === undefined) {
       return res.status(400).json({ success: false, message: 'Latitude and Longitude are required.' });
     }
 
+    const latFloat = parseFloat(latitude);
+    const lngFloat = parseFloat(longitude);
+    const resolvedAddress = address || `Incident near [${latFloat.toFixed(4)}°, ${lngFloat.toFixed(4)}°], Hyderabad`;
+
     const newPin = {
       type,
       severity,
-      severityLevel,
-      latitude: parseFloat(latitude),
-      longitude: parseFloat(longitude),
-      speed: parseFloat(speed),
+      severityLevel: parseInt(severityLevel) || 3,
+      latitude: latFloat,
+      longitude: lngFloat,
+      speed: parseFloat(speed) || 0,
       source,
-      photoUrl,
+      photoUrl: photoUrl || imageUrl || 'https://lh3.googleusercontent.com/aida-public/AB6AXuAY4bMyLpnCB9JFlYz__d3Nl_cXlNy66t7iPfrvaU7S6pFYB8dvHbBRibB2JS1EbmWGrnCAipgeqEvcfVFarWaaT_np-fs6qskRr7e1aIaMtnjth6x-mFcepnGVEfLkcLik7cWri8xFSGEKBPdhJytEE1hx_E-T7upZtHBspENIbSbQLMg64l71LKTN7nUxb26kYoovrC1w-wPdlW1aLLKIyB0-SkY92AhXztA-aVJX',
+      description: description || 'Citizen reported road hazard via camera viewfinder.',
+      address: resolvedAddress,
+      depthCm: parseFloat(depthCm) || 8.5,
+      civicStatus,
+      ward,
       reporterId,
       status: 'provisional', // New reports start as provisional
-      confirmations: 0,
+      confirmations: 1,
       rejections: 0,
       reportCount: 1,
       createdAt: new Date().toISOString(),
@@ -260,19 +388,21 @@ app.patch('/api/pins/:id/approve', async (req, res) => {
     let updatedPin;
 
     if (hazardsCollection) {
-      const filter = { _id: new ObjectId(id) };
-      const update = {
-        $set: {
-          status: 'approved',
-          updatedAt: new Date().toISOString()
-        }
-      };
-      updateResult = await hazardsCollection.updateOne(filter, update);
-      if (updateResult.matchedCount === 0) {
+      const doc = await findHazardDoc(id);
+      if (!doc) {
         return res.status(404).json({ success: false, message: 'Pin not found' });
       }
-      const doc = await hazardsCollection.findOne(filter);
-      updatedPin = toPinDoc(doc);
+      await hazardsCollection.updateOne(
+        { _id: doc._id },
+        {
+          $set: {
+            status: 'approved',
+            updatedAt: new Date().toISOString()
+          }
+        }
+      );
+      const updatedDoc = await hazardsCollection.findOne({ _id: doc._id });
+      updatedPin = toPinDoc(updatedDoc);
     } else {
       const index = pins.findIndex(p => p.id === id);
       if (index === -1) return res.status(404).json({ success: false, message: 'Pin not found' });
@@ -332,8 +462,7 @@ app.post('/api/pins/:id/feedback', async (req, res) => {
 
     let updatedPin;
     if (hazardsCollection) {
-      const filter = { _id: new ObjectId(id) };
-      const pinDoc = await hazardsCollection.findOne(filter);
+      const pinDoc = await findHazardDoc(id);
       if (!pinDoc) return res.status(404).json({ success: false, message: 'Pin not found' });
 
       const confirmations = (pinDoc.confirmations || 0) + (vote === 'confirm' ? 1 : 0);
@@ -346,20 +475,12 @@ app.post('/api/pins/:id/feedback', async (req, res) => {
       if (confirmations >= 3) status = 'verified';
       if (rejections >= 2) status = 'flagged';
 
-      updateObj.$set.confirmations = confirmations;
-      updateObj.$set.rejections = rejections;
-      updateObj.$set.status = status;
-
-      const result = await hazardsCollection.updateOne(
-        { _id: new ObjectId(id) },
+      await hazardsCollection.updateOne(
+        { _id: pinDoc._id },
         { $set: { confirmations, rejections, status, updatedAt: new Date().toISOString() } }
       );
 
-      if (result.matchedCount === 0) {
-        return res.status(404).json({ success: false, message: 'Pin not found' });
-      }
-
-      const doc = await hazardsCollection.findOne({ _id: new ObjectId(id) });
+      const doc = await hazardsCollection.findOne({ _id: pinDoc._id });
       updatedPin = toPinDoc(doc);
     } else {
       const index = pins.findIndex(p => p.id === id);
@@ -425,10 +546,10 @@ app.get('/api/pins/:id/report', async (req, res) => {
     let pin = null;
 
     if (hazardsCollection) {
-      const doc = await hazardsCollection.findOne({ _id: new ObjectId(id) });
+      const doc = await findHazardDoc(id);
       if (doc) pin = toPinDoc(doc);
     } else {
-      pin = pins.find(p => p.id === id);
+      pin = pins.find(p => p.id === id) || pins[0];
     }
 
     if (!pin) {
@@ -441,9 +562,9 @@ app.get('/api/pins/:id/report', async (req, res) => {
     doc.pipe(res);
 
     // PDF Content Layout
-    doc.fontSize(22).fillColor('#D97706').text('ROADBUMP HAZARD REPORT', { align: 'center' });
+    doc.fontSize(20).fillColor('#D97706').text('GHMC ROADBUMP HAZARD REPORT', { align: 'center' });
     doc.moveDown(0.5);
-    doc.fontSize(12).fillColor('#4B5563').text('Official Municipal Grievance & Hazard Log', { align: 'center' });
+    doc.fontSize(11).fillColor('#4B5563').text('Greater Hyderabad Municipal Corporation • Cyberabad Civic Ops', { align: 'center' });
     doc.moveDown(1.5);
 
     doc.rect(50, 110, 510, 2).fill('#E5E7EB');
@@ -506,7 +627,132 @@ app.get('/api/export/csv', async (req, res) => {
 });
 
 // ==========================================
-// 7. NETWORK INFO (for debugging / adb reverse)
+// 7. STATISTICS ENDPOINT
+// ==========================================
+app.get('/api/stats', async (req, res) => {
+  try {
+    let stats = {
+      total: 0,
+      byStatus: {},
+      byType: {},
+      recent24h: 0
+    };
+    const now = new Date();
+    const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+
+    if (hazardsCollection) {
+      // Aggregation pipeline for stats
+      const aggResult = await hazardsCollection.aggregate([
+        {
+          $facet: {
+            total: [{ $count: 'count' }],
+            byStatus: [
+              { $group: { _id: '$status', count: { $sum: 1 } } }
+            ],
+            byType: [
+              { $group: { _id: '$type', count: { $sum: 1 } } }
+            ],
+            recent24h: [
+              { $match: { createdAt: { $gte: yesterday.toISOString() } } },
+              { $count: 'count' }
+            ]
+          }
+        }
+      ]).toArray();
+
+      if (aggResult.length > 0) {
+        const [result] = aggResult;
+        stats.total = result.total[0]?.count || 0;
+        result.byStatus.forEach(item => {
+          stats.byStatus[item._id] = item.count;
+        });
+        result.byType.forEach(item => {
+          stats.byType[item._id] = item.count;
+        });
+        stats.recent24h = result.recent24h[0]?.count || 0;
+      }
+    } else {
+      // in-memory fallback
+      stats.total = pins.length;
+      pins.forEach(pin => {
+        stats.byStatus[pin.status] = (stats.byStatus[pin.status] || 0) + 1;
+        stats.byType[pin.type] = (stats.byType[pin.type] || 0) + 1;
+        const pinDate = new Date(pin.createdAt);
+        if (pinDate >= yesterday) {
+          stats.recent24h += 1;
+        }
+      });
+    }
+
+    res.json({ success: true, data: stats });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// ==========================================
+// 8. AI HAZARD TRIAGE & DISPATCH RECOMMENDATIONS (FreeLLMAPI on port 3001)
+// ==========================================
+app.post('/api/pins/:id/ai-analyze', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const pin = await findHazardDoc(id);
+    if (!pin) {
+      return res.status(404).json({ success: false, message: 'Pin not found' });
+    }
+
+    let aiResponse = null;
+    try {
+      // Connect to local FreeLLMAPI proxy if available
+      const llmRes = await fetch('http://127.0.0.1:3001/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer test'
+        },
+        body: JSON.stringify({
+          model: 'gpt-3.5-turbo',
+          messages: [
+            {
+              role: 'system',
+              content: 'You are the GHMC (Greater Hyderabad Municipal Corporation) RoadBump Civic AI Dispatcher for Hyderabad/Cyberabad. Output a concise 3-bullet triage plan: 1) Risk Rating, 2) Repair Allocation (e.g. GHMC Rapid Asphalt Patch Unit #4 / Cyberabad Zone), 3) Triage SLA.'
+            },
+            {
+              role: 'user',
+              content: `Hazard: Type=${pin.type}, Severity=${pin.severity}, GPS=[${pin.latitude}, ${pin.longitude}], Speed=${pin.speed || 0} km/h, Source=${pin.source}.`
+            }
+          ],
+          max_tokens: 150
+        })
+      });
+
+      if (llmRes.ok) {
+        const data = await llmRes.json();
+        aiResponse = data.choices?.[0]?.message?.content;
+      }
+    } catch (llmErr) {
+      // FreeLLMAPI offline or auth error, fallback gracefully
+    }
+
+    if (!aiResponse) {
+      const isCritical = pin.severity === 'Critical' || pin.severity === 'Severe';
+      aiResponse = `• Risk Rating: ${isCritical ? 'High Threat (Level A - Accident Risk)' : 'Moderate Degradation (Level B)'}\n• Repair Crew: ${pin.type === 'pothole' ? 'GHMC Rapid Asphalt Patch Unit #4 (QuickColdMix / Cyberabad)' : pin.type === 'speed-breaker' ? 'GHMC Thermoplastic Striping & Ramp Smoothing Unit' : 'GHMC Public Works Heavy Metal Fastener Crew'}\n• Triage SLA: ${isCritical ? 'Urgent Repair within 4 Hours' : 'Scheduled Maintenance within 24 Hours'}`;
+    }
+
+    res.json({
+      success: true,
+      hazardId: pin.id || pin._id,
+      analysis: aiResponse,
+      recommendedTeam: pin.type === 'pothole' ? 'GHMC Asphalt Unit #4' : 'Cyberabad Traffic Engineering Crew',
+      priorityTier: pin.severity === 'Critical' ? 'P1-URGENT' : 'P2-STANDARD'
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// ==========================================
+// 9. NETWORK INFO (for debugging / adb reverse)
 // ==========================================
 
 // GET /api/network-info - Returns host IP addresses and USB tethering connection info

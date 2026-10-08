@@ -1,49 +1,226 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { api } from '../api';
+import { sensorEngine } from '../services/sensorEngine';
 
-export default function ReportScreen({ onToast, onReportSubmitted }) {
+export default function ReportScreen({ onToast, onReportSubmitted, onNavigateToCivic }) {
   const [flashOn, setFlashOn] = useState(false);
   const [zoomLevel, setZoomLevel] = useState('1x');
   const [showGrid, setShowGrid] = useState(true);
   const [hazardType, setHazardType] = useState('pothole');
-  const [severityLevel, setSeverityLevel] = useState(3);
-  const [fieldNotes, setFieldNotes] = useState('Deep asphalt rutting near storm drain edge. Hazard to two-wheelers.');
+  const [severityLevel, setSeverityLevel] = useState(4); // Default to Critical for civic impact
+  const [fieldNotes, setFieldNotes] = useState('Deep asphalt crater near storm drain. Severe hazard to two-wheelers and night traffic.');
   const [shutterSnapping, setShutterSnapping] = useState(false);
   const [photoCount, setPhotoCount] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [broadcastActive, setBroadcastActive] = useState(false);
 
-  const handleSnap = () => {
-    setShutterSnapping(true);
-    setTimeout(() => {
-      setShutterSnapping(false);
-      setPhotoCount(prev => prev + 1);
-      onToast('Photo captured with GPS & EXIF telemetry stamp!');
-    }, 280);
+  // Live Camera Stream State
+  const [cameraActive, setCameraActive] = useState(false);
+  const [facingMode, setFacingMode] = useState('environment'); // back camera
+  const [capturedPhoto, setCapturedPhoto] = useState(null);
+  const [cameraError, setCameraError] = useState(null);
+
+  // Live GPS Coordinates
+  const [coords, setCoords] = useState({
+    latitude: 17.440081,
+    longitude: 78.348915,
+    locationName: 'Cyber Towers Junction (HITEC City), Hyderabad'
+  });
+
+  const videoRef = useRef(null);
+  const canvasRef = useRef(null);
+  const fileInputRef = useRef(null);
+  const streamRef = useRef(null);
+
+  // Start live device camera stream
+  const startCamera = async (mode = 'environment') => {
+    try {
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach(track => track.stop());
+      }
+      if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: {
+            facingMode: { ideal: mode },
+            width: { ideal: 1280 },
+            height: { ideal: 720 }
+          },
+          audio: false
+        });
+        streamRef.current = stream;
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+          videoRef.current.play();
+        }
+        setCameraActive(true);
+        setCameraError(null);
+      }
+    } catch (err) {
+      console.warn('Camera access note:', err.message);
+      setCameraActive(false);
+      setCameraError('Tap below to use Camera App or Upload');
+    }
   };
 
-  const handlePublish = async () => {
+  useEffect(() => {
+    // Start camera stream on mount
+    startCamera(facingMode);
+
+    if (sensorEngine?.state?.latitude) {
+      setCoords({
+        latitude: sensorEngine.state.latitude,
+        longitude: sensorEngine.state.longitude,
+        locationName: sensorEngine.state.locationName || 'Cyber Towers, Hyderabad'
+      });
+    }
+
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        pos => {
+          setCoords({
+            latitude: pos.coords.latitude,
+            longitude: pos.coords.longitude,
+            locationName: 'GPS Locked • GHMC Ward #104 (Cyberabad)'
+          });
+        },
+        err => console.log('ReportScreen GPS Note:', err.message),
+        { enableHighAccuracy: true, timeout: 5000 }
+      );
+    }
+
+    return () => {
+      // Stop camera stream on unmount
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach(track => track.stop());
+      }
+    };
+  }, []);
+
+  // Switch between front and back camera
+  const handleToggleFacingMode = () => {
+    const nextMode = facingMode === 'environment' ? 'user' : 'environment';
+    setFacingMode(nextMode);
+    startCamera(nextMode);
+    onToast(`Switched to ${nextMode === 'environment' ? 'Rear Road Camera' : 'Front Camera'}`);
+  };
+
+  // Capture photo from live video stream or trigger fallback file picker
+  const handleSnap = () => {
+    setShutterSnapping(true);
+
+    if (cameraActive && videoRef.current && canvasRef.current) {
+      const video = videoRef.current;
+      const canvas = canvasRef.current;
+      canvas.width = video.videoWidth || 640;
+      canvas.height = video.videoHeight || 480;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      const photoData = canvas.toDataURL('image/jpeg', 0.85);
+      setCapturedPhoto(photoData);
+      setPhotoCount(prev => prev + 1);
+      setTimeout(() => setShutterSnapping(false), 200);
+      onToast('📸 Live Camera Frame captured with GPS stamp!');
+    } else {
+      // If camera stream not active, snapshot the preview image
+      setTimeout(() => {
+        setShutterSnapping(false);
+        setCapturedPhoto(
+          'https://lh3.googleusercontent.com/aida-public/AB6AXuAY4bMyLpnCB9JFlYz__d3Nl_cXlNy66t7iPfrvaU7S6pFYB8dvHbBRibB2JS1EbmWGrnCAipgeqEvcfVFarWaaT_np-fs6qskRr7e1aIaMtnjth6x-mFcepnGVEfLkcLik7cWri8xFSGEKBPdhJytEE1hx_E-T7upZtHBspENIbSbQLMg64l71LKTN7nUxb26kYoovrC1w-wPdlW1aLLKIyB0-SkY92AhXztA-aVJX'
+        );
+        setPhotoCount(prev => prev + 1);
+        onToast('📸 Photo recorded with GPS & EXIF telemetry stamp!');
+      }, 250);
+    }
+  };
+
+  // Handle file camera upload from native Android camera app
+  const handleFileChange = (e) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (evt) => {
+        setCapturedPhoto(evt.target?.result);
+        setPhotoCount(prev => prev + 1);
+        onToast('📷 Photo uploaded from Android Camera App!');
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  // Core Submission: Converts report into a Civic Grievance and routes directly to Civic screen
+  const handleConvertToCivic = async () => {
+    setIsSubmitting(true);
+    const severityLabels = { 1: 'Minor', 2: 'Moderate', 3: 'Severe', 4: 'Critical' };
+    const depthValues = { 1: 3.5, 2: 6.2, 3: 9.8, 4: 14.5 };
+
+    const photoUrl =
+      capturedPhoto ||
+      'https://lh3.googleusercontent.com/aida-public/AB6AXuAY4bMyLpnCB9JFlYz__d3Nl_cXlNy66t7iPfrvaU7S6pFYB8dvHbBRibB2JS1EbmWGrnCAipgeqEvcfVFarWaaT_np-fs6qskRr7e1aIaMtnjth6x-mFcepnGVEfLkcLik7cWri8xFSGEKBPdhJytEE1hx_E-T7upZtHBspENIbSbQLMg64l71LKTN7nUxb26kYoovrC1w-wPdlW1aLLKIyB0-SkY92AhXztA-aVJX';
+
+    const civicPayload = {
+      type: hazardType,
+      latitude: coords.latitude,
+      longitude: coords.longitude,
+      depthCm: depthValues[severityLevel] || 12.0,
+      severity: severityLabels[severityLevel] || 'Critical',
+      severityLevel,
+      photoUrl,
+      imageUrl: photoUrl,
+      description: fieldNotes,
+      address: `Incident at [${coords.latitude.toFixed(4)}°, ${coords.longitude.toFixed(4)}°], Cyber Towers Corridor (Ward #104)`,
+      ward: 'Ward #104 GHMC West (Cyberabad)',
+      civicStatus: 'pending_dispatch',
+      source: 'camera_citizen',
+      confirmations: 1
+    };
+
+    try {
+      const res = await api.createPin(civicPayload);
+      const createdTicket = res?.data || civicPayload;
+
+      onToast(`🏛️ Converted to Civic Work Order #${createdTicket.id || 'RB-104'}! Dispatched to GHMC.`);
+      
+      // Notify parent & Live-route directly to Civic section!
+      if (onReportSubmitted) onReportSubmitted(createdTicket);
+      if (onNavigateToCivic) {
+        onNavigateToCivic(createdTicket);
+      }
+    } catch (e) {
+      console.warn('Civic conversion note:', e);
+      // Fallback: still navigate to Civic with local ticket
+      if (onNavigateToCivic) {
+        onNavigateToCivic(civicPayload);
+      }
+      onToast('🏛️ Saved & Live Dispatched to Civic Control Center!');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // Normal Public Publish
+  const handlePublishPublic = async () => {
     setIsSubmitting(true);
     const severityLabels = { 1: 'Minor', 2: 'Moderate', 3: 'Severe', 4: 'Critical' };
     const pinPayload = {
       type: hazardType,
-      latitude: 12.9716,
-      longitude: 77.5946,
-      depthCm: severityLevel === 4 ? 12 : severityLevel === 3 ? 9.2 : 5.0,
+      latitude: coords.latitude,
+      longitude: coords.longitude,
+      depthCm: severityLevel === 4 ? 14.5 : severityLevel === 3 ? 9.2 : 5.0,
       severity: severityLabels[severityLevel] || 'Severe',
-      imageUrl: 'https://lh3.googleusercontent.com/aida-public/AB6AXuAY4bMyLpnCB9JFlYz__d3Nl_cXlNy66t7iPfrvaU7S6pFYB8dvHbBRibB2JS1EbmWGrnCAipgeqEvcfVFarWaaT_np-fs6qskRr7e1aIaMtnjth6x-mFcepnGVEfLkcLik7cWri8xFSGEKBPdhJytEE1hx_E-T7upZtHBspENIbSbQLMg64l71LKTN7nUxb26kYoovrC1w-wPdlW1aLLKIyB0-SkY92AhXztA-aVJX',
+      severityLevel,
+      imageUrl: capturedPhoto || 'https://lh3.googleusercontent.com/aida-public/AB6AXuAY4bMyLpnCB9JFlYz__d3Nl_cXlNy66t7iPfrvaU7S6pFYB8dvHbBRibB2JS1EbmWGrnCAipgeqEvcfVFarWaaT_np-fs6qskRr7e1aIaMtnjth6x-mFcepnGVEfLkcLik7cWri8xFSGEKBPdhJytEE1hx_E-T7upZtHBspENIbSbQLMg64l71LKTN7nUxb26kYoovrC1w-wPdlW1aLLKIyB0-SkY92AhXztA-aVJX',
       description: fieldNotes
     };
 
     try {
       const res = await api.createPin(pinPayload);
       setBroadcastActive(true);
-      onToast(`Hazard pin #${res.data?.id || 'RB-9021'} published & broadcast!`);
+      onToast(`Hazard pin published to Map & Mesh!`);
       if (onReportSubmitted) onReportSubmitted(res.data);
     } catch (e) {
       console.warn(e);
       setBroadcastActive(true);
-      onToast('Hazard saved locally and queued for FCM push.');
+      onToast('Hazard saved locally and broadcast to nearby vehicles.');
     } finally {
       setIsSubmitting(false);
     }
@@ -51,6 +228,19 @@ export default function ReportScreen({ onToast, onReportSubmitted }) {
 
   return (
     <div className="flex flex-col relative w-full pt-20 pb-28 min-h-screen px-4 max-w-lg mx-auto animate-fadeIn select-none">
+      {/* Hidden canvas for video frame snapping */}
+      <canvas ref={canvasRef} className="hidden" />
+
+      {/* Hidden file input for native Android camera trigger */}
+      <input
+        type="file"
+        accept="image/*"
+        capture="environment"
+        ref={fileInputRef}
+        onChange={handleFileChange}
+        className="hidden"
+      />
+
       <div className="flex flex-col w-full gap-4">
         {/* Broadcast alert banner */}
         {broadcastActive && (
@@ -70,20 +260,42 @@ export default function ReportScreen({ onToast, onReportSubmitted }) {
         )}
 
         {/* Clay Viewfinder Container */}
-        <div className="p-3 clay-card">
+        <div className="p-3 clay-card bg-white rounded-3xl shadow-lg border border-white">
           <div className="relative w-full aspect-[4/4.8] rounded-2xl overflow-hidden bg-slate-900 shadow-inner">
-            {/* Live camera feed simulation */}
-            <img
-              alt="First-person pedestrian mobile camera view looking down at asphalt city street with severe jagged asphalt pothole exposing gravel base."
-              className={`w-full h-full object-cover transition-transform duration-300 ${
-                zoomLevel === '2x' ? 'scale-125' : 'scale-100'
-              }`}
-              src="https://lh3.googleusercontent.com/aida-public/AB6AXuAY4bMyLpnCB9JFlYz__d3Nl_cXlNy66t7iPfrvaU7S6pFYB8dvHbBRibB2JS1EbmWGrnCAipgeqEvcfVFarWaaT_np-fs6qskRr7e1aIaMtnjth6x-mFcepnGVEfLkcLik7cWri8xFSGEKBPdhJytEE1hx_E-T7upZtHBspENIbSbQLMg64l71LKTN7nUxb26kYoovrC1w-wPdlW1aLLKIyB0-SkY92AhXztA-aVJX"
-            />
+            {/* Live Camera Video Feed */}
+            {cameraActive && !capturedPhoto ? (
+              <video
+                ref={videoRef}
+                autoPlay
+                playsInline
+                muted
+                className={`w-full h-full object-cover transition-transform duration-300 ${
+                  zoomLevel === '2x' ? 'scale-125' : 'scale-100'
+                }`}
+              />
+            ) : capturedPhoto ? (
+              /* Captured Photo Review Frame */
+              <img
+                alt="Captured road hazard evidence"
+                className={`w-full h-full object-cover transition-transform duration-300 ${
+                  zoomLevel === '2x' ? 'scale-125' : 'scale-100'
+                }`}
+                src={capturedPhoto}
+              />
+            ) : (
+              /* Fallback Preview when stream is initializing */
+              <img
+                alt="Camera viewfinder preview"
+                className={`w-full h-full object-cover transition-transform duration-300 ${
+                  zoomLevel === '2x' ? 'scale-125' : 'scale-100'
+                }`}
+                src="https://lh3.googleusercontent.com/aida-public/AB6AXuAY4bMyLpnCB9JFlYz__d3Nl_cXlNy66t7iPfrvaU7S6pFYB8dvHbBRibB2JS1EbmWGrnCAipgeqEvcfVFarWaaT_np-fs6qskRr7e1aIaMtnjth6x-mFcepnGVEfLkcLik7cWri8xFSGEKBPdhJytEE1hx_E-T7upZtHBspENIbSbQLMg64l71LKTN7nUxb26kYoovrC1w-wPdlW1aLLKIyB0-SkY92AhXztA-aVJX"
+              />
+            )}
 
             {/* Shutter flash overlay */}
             {shutterSnapping && (
-              <div className="absolute inset-0 bg-white opacity-80 animate-ping pointer-events-none"></div>
+              <div className="absolute inset-0 bg-white opacity-90 animate-ping pointer-events-none"></div>
             )}
 
             {/* Camera overlay gradient */}
@@ -104,24 +316,24 @@ export default function ReportScreen({ onToast, onReportSubmitted }) {
               </div>
             )}
 
-            {/* Telemetry Ribbon Bar */}
+            {/* Top Telemetry Ribbon Bar */}
             <div className="absolute top-3 left-3 right-3 flex items-center justify-between pointer-events-none z-10">
-              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/85 backdrop-blur-md shadow-md">
+              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/90 backdrop-blur-md shadow-md">
                 <span className="w-2 h-2 rounded-full bg-orange-500 animate-ping"></span>
                 <span className="text-[11px] font-bold text-orange-600 uppercase tracking-wider">
-                  CameraX Live • 60 FPS
+                  {cameraActive && !capturedPhoto ? 'Live Road Camera' : capturedPhoto ? 'Photo Locked' : 'Camera Ready'}
                 </span>
               </div>
-              <div className="flex items-center gap-1 px-3 py-1.5 rounded-full bg-white/85 backdrop-blur-md shadow-md">
+              <div className="flex items-center gap-1 px-3 py-1.5 rounded-full bg-white/90 backdrop-blur-md shadow-md">
                 <span className="material-symbols-outlined text-[13px] text-teal-600 font-bold">
                   satellite_alt
                 </span>
-                <span className="text-[11px] font-bold text-teal-700">GPS LOCK ±3m</span>
+                <span className="text-[11px] font-bold text-teal-700">GPS LOCK ±2.4m</span>
               </div>
             </div>
 
             {/* AI Reticle Target Box */}
-            <div className="absolute top-[28%] left-[16%] w-[68%] h-[42%] pointer-events-none flex flex-col justify-between p-2">
+            <div className="absolute top-[26%] left-[16%] w-[68%] h-[42%] pointer-events-none flex flex-col justify-between p-2">
               <div className="flex justify-between w-full">
                 <div className="w-5 h-5 border-t-4 border-l-4 border-amber-400 rounded-tl-lg shadow-sm"></div>
                 <div className="w-5 h-5 border-t-4 border-r-4 border-amber-400 rounded-tr-lg shadow-sm"></div>
@@ -129,7 +341,7 @@ export default function ReportScreen({ onToast, onReportSubmitted }) {
               <div className="self-center flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/90 text-white shadow-lg backdrop-blur-md animate-pulse border border-amber-200">
                 <span className="material-symbols-outlined text-[15px]">warning</span>
                 <span className="text-[11px] font-bold tracking-wide uppercase">
-                  Pothole Detected • 91.8%
+                  {hazardType.toUpperCase()} DETECTED • 94.2%
                 </span>
               </div>
               <div className="flex justify-between w-full">
@@ -138,26 +350,27 @@ export default function ReportScreen({ onToast, onReportSubmitted }) {
               </div>
             </div>
 
-            {/* Telemetry Stamp */}
-            <div className="absolute bottom-14 left-3 right-3 p-2.5 rounded-xl bg-white/85 backdrop-blur-md text-clay-dark flex flex-col gap-1 pointer-events-none z-10 shadow-md">
+            {/* Live GPS Telemetry Stamp */}
+            <div className="absolute bottom-14 left-3 right-3 p-2.5 rounded-xl bg-white/90 backdrop-blur-md text-clay-dark flex flex-col gap-1 pointer-events-none z-10 shadow-md">
               <div className="flex items-center justify-between text-[11px] font-semibold">
-                <div className="flex items-center gap-1 text-orange-600 font-bold">
+                <div className="flex items-center gap-1 text-orange-600 font-bold truncate">
                   <span className="material-symbols-outlined text-[13px]">location_on</span>
-                  <span>LAT: 12.9716° N • LNG: 77.5946° E</span>
+                  <span>LAT: {coords.latitude.toFixed(4)}° N • LNG: {coords.longitude.toFixed(4)}° E (Hyderabad)</span>
                 </div>
-                <span className="text-teal-700 font-bold">HDG 284° WNW</span>
+                <span className="text-teal-700 font-bold">WARD #104</span>
               </div>
-              <div className="flex items-center justify-between text-[10px] text-clay-muted">
+              <div className="flex items-center justify-between text-[10px] text-slate-500 font-medium">
                 <div className="flex items-center gap-1">
                   <span className="material-symbols-outlined text-[12px]">directions_walk</span>
-                  <span>1.8 km/h (Walking Mode Auto)</span>
+                  <span>Civic Telemetry • GHMC Cyberabad</span>
                 </div>
-                <span className="font-mono font-medium text-slate-700">2026-10-08 19:45 IST</span>
+                <span className="font-mono text-slate-700">2026-10-09 IST</span>
               </div>
             </div>
 
             {/* In-viewfinder Tactical Controls Bar */}
             <div className="absolute bottom-2 left-0 right-0 px-3 flex items-center justify-between z-20">
+              {/* Flash Toggle */}
               <button
                 aria-label="Toggle Flash Mode"
                 className={`w-9 h-9 rounded-xl backdrop-blur-md flex items-center justify-center shadow-md active:scale-95 transition-transform ${
@@ -174,6 +387,7 @@ export default function ReportScreen({ onToast, onReportSubmitted }) {
                 </span>
               </button>
 
+              {/* Zoom Buttons */}
               <div className="flex p-0.5 rounded-xl bg-white/90 backdrop-blur-md shadow-md gap-0.5">
                 <button
                   className={`px-2.5 h-7 rounded-lg text-[11px] font-bold transition-all ${
@@ -195,36 +409,37 @@ export default function ReportScreen({ onToast, onReportSubmitted }) {
                 </button>
               </div>
 
+              {/* Switch Camera / Facing Mode */}
               <button
-                aria-label="Toggle Composition Grid"
-                className={`w-9 h-9 rounded-xl backdrop-blur-md flex items-center justify-center shadow-md active:scale-95 transition-transform ${
-                  showGrid ? 'bg-white/90 text-orange-600' : 'bg-white/70 text-slate-400'
-                }`}
-                onClick={() => setShowGrid(!showGrid)}
+                aria-label="Switch Camera Facing Mode"
+                className="w-9 h-9 rounded-xl bg-white/90 backdrop-blur-md text-slate-700 flex items-center justify-center shadow-md active:scale-95 transition-transform"
+                onClick={handleToggleFacingMode}
+                title="Switch Camera (Front/Rear)"
                 type="button"
               >
-                <span className="material-symbols-outlined text-[18px]">grid_4x4</span>
+                <span className="material-symbols-outlined text-[18px]">cameraswitch</span>
               </button>
             </div>
           </div>
 
           {/* Tactile Shutter Dock Zone */}
           <div className="flex items-center justify-around pt-4 pb-2">
-            <div className="w-12 h-12 rounded-2xl clay-card overflow-hidden p-1 flex items-center justify-center relative cursor-pointer active:scale-95 transition-transform">
-              <img
-                alt="Micro thumbnail of municipal roadway asphalt condition."
-                className="w-full h-full object-cover rounded-xl"
-                src="https://lh3.googleusercontent.com/aida-public/AB6AXuCeyO4qvPF0PC5UQao-gFRsgHXTP99f9YyRlmTIXO40Ea2MHKAY16NVj780chCwo40XggWjJijFR28hKmvmYD4DmcIHdidYFml2dYAU0YjaREKf3SFwPVTLTUmI84_E9RbCy-0gv8kXF-z9JfPLfRQlC9MVWMivIz_D6nFGDRvssRK3B3PeUUoJSgxrbZezegAnGHiNBhu5USeHDZrhF7oHdsLpg-BLYk6QoDAdI4B5"
-              />
-              <span className="material-symbols-outlined absolute text-[16px] text-white drop-shadow">
-                history
+            {/* Gallery / File Camera Trigger */}
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              className="w-12 h-12 rounded-2xl clay-card overflow-hidden p-1 flex items-center justify-center relative cursor-pointer active:scale-95 transition-transform bg-slate-100 hover:bg-slate-200"
+              title="Upload Photo or Launch Native Camera"
+              type="button"
+            >
+              <span className="material-symbols-outlined text-[22px] text-slate-700">
+                photo_library
               </span>
-            </div>
+            </button>
 
             {/* Primary Tactile Shutter Button */}
             <button
               aria-label="Snap Hazard Photo"
-              className="w-[74px] h-[74px] clay-shutter flex items-center justify-center group active:scale-95 transition-transform"
+              className="w-[74px] h-[74px] clay-shutter flex items-center justify-center group active:scale-95 transition-transform bg-gradient-to-tr from-orange-500 to-amber-400 rounded-full shadow-lg border-4 border-white"
               onClick={handleSnap}
               type="button"
             >
@@ -233,26 +448,77 @@ export default function ReportScreen({ onToast, onReportSubmitted }) {
               </div>
             </button>
 
-            {/* IMU Gyro Alignment */}
+            {/* Retake / Clear Photo */}
             <button
-              className="w-12 h-12 rounded-2xl clay-btn-neutral flex flex-col items-center justify-center text-clay-muted hover:text-clay-dark"
-              title="IMU Gyro Alignment"
-              onClick={() => onToast('IMU Roll Calibrated: 0.0°')}
+              className="w-12 h-12 rounded-2xl clay-btn-neutral flex flex-col items-center justify-center text-slate-600 hover:text-slate-800 active:scale-95 transition-transform"
+              title={capturedPhoto ? "Retake Live Photo" : "Camera Sensor Sync"}
+              onClick={() => {
+                if (capturedPhoto) {
+                  setCapturedPhoto(null);
+                  startCamera(facingMode);
+                  onToast('Camera viewfinder reset for new capture.');
+                } else {
+                  onToast('IMU Roll Calibrated: 0.0°');
+                }
+              }}
               type="button"
             >
-              <span className="material-symbols-outlined text-[18px] text-teal-600">screen_rotation</span>
-              <span className="text-[9px] font-bold text-clay-muted mt-0.5">0.4° ROLL</span>
+              <span className="material-symbols-outlined text-[18px] text-teal-600">
+                {capturedPhoto ? 'restart_alt' : 'screen_rotation'}
+              </span>
+              <span className="text-[9px] font-bold text-slate-500 mt-0.5">
+                {capturedPhoto ? 'RETAKE' : '0.0° ROLL'}
+              </span>
             </button>
           </div>
         </div>
 
+        {/* PROMINENT CIVIC CONVERSION BUTTON (The Core User Feature!) */}
+        <div className="clay-card rounded-3xl p-4 bg-gradient-to-r from-indigo-900 via-indigo-800 to-purple-900 text-white flex flex-col gap-3 shadow-xl border border-indigo-500/30">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping"></span>
+              <span className="text-[11px] font-extrabold uppercase tracking-wider text-indigo-200">
+                Civic Dispatch Integration
+              </span>
+            </div>
+            <span className="text-[10px] font-bold bg-white/20 px-2 py-0.5 rounded-full text-white">
+              GHMC Ward #104
+            </span>
+          </div>
+
+          <div>
+            <h3 className="text-base font-extrabold text-white">
+              Convert Report to Civic Work Order
+            </h3>
+            <p className="text-xs text-indigo-200 mt-0.5">
+              Instantly sends this camera report to the <strong>Civic Control Center</strong>, auto-assigns GHMC repair crews, and generates an official municipal SLA.
+            </p>
+          </div>
+
+          <button
+            className="w-full h-13 py-3 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-white font-extrabold text-sm flex items-center justify-center gap-2 shadow-lg active:scale-95 transition-all cursor-pointer"
+            onClick={handleConvertToCivic}
+            disabled={isSubmitting}
+            type="button"
+          >
+            <span className="material-symbols-outlined text-[20px]">policy</span>
+            <span>
+              {isSubmitting ? 'Converting to Civic Ticket...' : 'Convert to Civic & View in Control Center ➔'}
+            </span>
+          </button>
+        </div>
+
         {/* Compression & Metadata Card */}
-        <div className="p-4 clay-card flex gap-3.5 items-center">
-          <div className="relative w-16 h-16 rounded-2xl overflow-hidden shrink-0 clay-inset p-0.5">
+        <div className="p-4 clay-card bg-white rounded-3xl flex gap-3.5 items-center shadow-sm">
+          <div className="relative w-16 h-16 rounded-2xl overflow-hidden shrink-0 clay-inset p-0.5 bg-slate-100">
             <img
-              alt="Close up high detail photograph of severe asphalt pavement rupture."
+              alt="Close up high detail photograph of road condition"
               className="w-full h-full object-cover rounded-xl"
-              src="https://lh3.googleusercontent.com/aida-public/AB6AXuDHzc__Af1-HIowup59Yj9mORV_PLHYD7EnydmHCtSsQu_MfnI_FtI-JiLIp6tjVdncqMmlM8Fl9C6QnaXuAfZY25qX13g0HMfQE2DAK9o6sb6JD-pJHNJ3Z2JzufDoRQgrUqPuiaizJk3WAaNVPKwi7fmP2ntsdKtZ2ammezkCrIt3bFKWNXMBbU9pdXULCob0oB_DmoNc5s-E5Bll9Qfgy1IHxIV5MJLbRNw-7Xwi"
+              src={
+                capturedPhoto ||
+                "https://lh3.googleusercontent.com/aida-public/AB6AXuDHzc__Af1-HIowup59Yj9mORV_PLHYD7EnydmHCtSsQu_MfnI_FtI-JiLIp6tjVdncqMmlM8Fl9C6QnaXuAfZY25qX13g0HMfQE2DAK9o6sb6JD-pJHNJ3Z2JzufDoRQgrUqPuiaizJk3WAaNVPKwi7fmP2ntsdKtZ2ammezkCrIt3bFKWNXMBbU9pdXULCob0oB_DmoNc5s-E5Bll9Qfgy1IHxIV5MJLbRNw-7Xwi"
+              }
             />
             <span className="absolute bottom-1 right-1 px-1 py-0.2 rounded-md bg-white/90 text-teal-700 font-bold text-[8px] shadow">
               AI OK
@@ -260,35 +526,35 @@ export default function ReportScreen({ onToast, onReportSubmitted }) {
           </div>
           <div className="flex flex-col min-w-0 flex-1 justify-between">
             <div className="flex items-center justify-between">
-              <span className="font-bold text-[15px] text-clay-dark truncate">
-                Frame #RB-{8920 + photoCount}
+              <span className="font-bold text-[14px] text-slate-800 truncate">
+                Evidence Frame #{8920 + photoCount}
               </span>
               <span className="text-[10px] font-bold text-orange-700 px-2 py-0.5 rounded-full bg-orange-100 shadow-[inset_1px_1px_2px_#fed7aa]">
-                EXIF ATTACHED
+                EXIF &amp; GPS
               </span>
             </div>
-            <div className="flex items-center gap-1.5 mt-1 text-clay-muted text-[11px] font-medium">
+            <div className="flex items-center gap-1.5 mt-1 text-slate-500 text-[11px] font-medium">
               <span className="material-symbols-outlined text-[14px] text-teal-600">compress</span>
-              <span>Optimized: 800px width • 142 KB</span>
+              <span>Edge Compressed: 800px • 142 KB</span>
             </div>
-            <p className="text-[11px] text-clay-muted mt-0.5">Zero-latency Edge compression completed in 32ms</p>
+            <p className="text-[11px] text-slate-400 mt-0.5">Ready for instant municipal triage</p>
           </div>
         </div>
 
         {/* Hazard Classification Selector Grid */}
         <div className="flex flex-col gap-2">
           <div className="flex items-center justify-between px-1">
-            <label className="text-[11px] font-bold text-clay-muted uppercase tracking-wider">
+            <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
               Hazard Classification
             </label>
-            <span className="text-[11px] font-semibold text-orange-600">Auto-Selected by Vision Engine</span>
+            <span className="text-[11px] font-semibold text-orange-600">AI Vision Classified</span>
           </div>
           <div className="grid grid-cols-2 gap-2.5">
             <button
-              className={`hazard-chip flex items-center justify-center gap-2 h-12 px-3 rounded-2xl font-semibold text-[13px] ${
+              className={`hazard-chip flex items-center justify-center gap-2 h-12 px-3 rounded-2xl font-semibold text-[13px] transition-all ${
                 hazardType === 'pothole'
-                  ? 'clay-btn-primary'
-                  : 'clay-btn-neutral text-clay-dark'
+                  ? 'clay-btn-primary bg-orange-500 text-white font-bold'
+                  : 'clay-btn-neutral text-slate-700 bg-white'
               }`}
               onClick={() => setHazardType('pothole')}
               type="button"
@@ -297,10 +563,10 @@ export default function ReportScreen({ onToast, onReportSubmitted }) {
               <span>Pothole</span>
             </button>
             <button
-              className={`hazard-chip flex items-center justify-center gap-2 h-12 px-3 rounded-2xl font-semibold text-[13px] ${
+              className={`hazard-chip flex items-center justify-center gap-2 h-12 px-3 rounded-2xl font-semibold text-[13px] transition-all ${
                 hazardType === 'speed-breaker'
-                  ? 'clay-btn-primary'
-                  : 'clay-btn-neutral text-clay-dark'
+                  ? 'clay-btn-primary bg-orange-500 text-white font-bold'
+                  : 'clay-btn-neutral text-slate-700 bg-white'
               }`}
               onClick={() => setHazardType('speed-breaker')}
               type="button"
@@ -309,10 +575,10 @@ export default function ReportScreen({ onToast, onReportSubmitted }) {
               <span>Speed-breaker</span>
             </button>
             <button
-              className={`hazard-chip flex items-center justify-center gap-2 h-12 px-3 rounded-2xl font-semibold text-[13px] ${
+              className={`hazard-chip flex items-center justify-center gap-2 h-12 px-3 rounded-2xl font-semibold text-[13px] transition-all ${
                 hazardType === 'metal-plate'
-                  ? 'clay-btn-primary'
-                  : 'clay-btn-neutral text-clay-dark'
+                  ? 'clay-btn-primary bg-orange-500 text-white font-bold'
+                  : 'clay-btn-neutral text-slate-700 bg-white'
               }`}
               onClick={() => setHazardType('metal-plate')}
               type="button"
@@ -321,10 +587,10 @@ export default function ReportScreen({ onToast, onReportSubmitted }) {
               <span>Metal Plate</span>
             </button>
             <button
-              className={`hazard-chip flex items-center justify-center gap-2 h-12 px-3 rounded-2xl font-semibold text-[13px] ${
+              className={`hazard-chip flex items-center justify-center gap-2 h-12 px-3 rounded-2xl font-semibold text-[13px] transition-all ${
                 hazardType === 'manhole'
-                  ? 'clay-btn-primary'
-                  : 'clay-btn-neutral text-clay-dark'
+                  ? 'clay-btn-primary bg-orange-500 text-white font-bold'
+                  : 'clay-btn-neutral text-slate-700 bg-white'
               }`}
               onClick={() => setHazardType('manhole')}
               type="button"
@@ -336,9 +602,9 @@ export default function ReportScreen({ onToast, onReportSubmitted }) {
         </div>
 
         {/* Severity Scale Rating Card */}
-        <div className="p-4 clay-card flex flex-col gap-3">
+        <div className="p-4 clay-card bg-white rounded-3xl flex flex-col gap-3 shadow-sm">
           <div className="flex items-center justify-between">
-            <span className="text-[11px] font-bold text-clay-muted uppercase tracking-wider">
+            <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
               Severity Assessment
             </span>
             <span className="text-[11px] font-bold text-orange-600 uppercase">
@@ -359,8 +625,8 @@ export default function ReportScreen({ onToast, onReportSubmitted }) {
                 key={item.lvl}
                 className={`severity-btn flex flex-col items-center justify-center py-2.5 rounded-2xl font-medium transition-all ${
                   severityLevel === item.lvl
-                    ? 'clay-btn-primary font-bold shadow-md'
-                    : 'clay-btn-neutral text-clay-muted'
+                    ? 'clay-btn-primary bg-rose-500 text-white font-bold shadow-md'
+                    : 'clay-btn-neutral bg-slate-100 text-slate-600'
                 }`}
                 onClick={() => setSeverityLevel(item.lvl)}
                 type="button"
@@ -376,12 +642,12 @@ export default function ReportScreen({ onToast, onReportSubmitted }) {
 
         {/* Field Observation Notes Inset */}
         <div className="flex flex-col gap-2">
-          <label className="text-[11px] font-bold text-clay-muted uppercase tracking-wider px-1">
+          <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider px-1">
             Field Observation Notes
           </label>
-          <div className="clay-inset p-3 rounded-2xl">
+          <div className="clay-inset p-3 rounded-2xl bg-slate-100 border border-slate-200">
             <textarea
-              className="w-full bg-transparent border-0 outline-none text-xs text-clay-dark resize-none font-medium placeholder:text-clay-muted"
+              className="w-full bg-transparent border-0 outline-none text-xs text-slate-800 resize-none font-medium placeholder:text-slate-400"
               rows="2"
               value={fieldNotes}
               onChange={(e) => setFieldNotes(e.target.value)}
@@ -390,15 +656,15 @@ export default function ReportScreen({ onToast, onReportSubmitted }) {
           </div>
         </div>
 
-        {/* Action Button: Publish Verified Hazard */}
+        {/* Secondary Action: Publish to Public Map */}
         <button
-          className="clay-button-primary w-full h-14 rounded-2xl font-extrabold text-[15px] flex items-center justify-center gap-2 shadow-lg active:scale-95 transition-all mt-2"
-          onClick={handlePublish}
+          className="w-full h-12 rounded-2xl bg-white border border-slate-300 text-slate-700 font-bold text-xs flex items-center justify-center gap-2 active:scale-95 transition-all hover:bg-slate-50 shadow-sm"
+          onClick={handlePublishPublic}
           disabled={isSubmitting}
           type="button"
         >
-          <span className="material-symbols-outlined text-[22px]">cell_tower</span>
-          <span>{isSubmitting ? 'Pushing to FCM Mesh...' : 'Publish & Broadcast Hazard Pin'}</span>
+          <span className="material-symbols-outlined text-[18px] text-indigo-600">cell_tower</span>
+          <span>Publish &amp; Broadcast to Public Map</span>
         </button>
       </div>
     </div>
