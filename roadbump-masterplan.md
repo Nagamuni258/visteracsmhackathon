@@ -8,193 +8,229 @@
 
 ## 1. Executive Summary & Impact Analysis
 
-- **The Core Problem:** Indian roads are riddled with potholes, speed-breakers, metal plates, and unmarked hazards. These cause accidents, vehicle damage, and deaths. Current solutions (Google Maps Waze reports) are manual — users tap a button, often inaccurately, with no verification, no severity scoring, and no predictive capability. Municipalities have no real-time hazard database.
+- **The Core Problem:** Indian roads are riddled with potholes, speed‑breakers, metal plates, and unmarked hazards. These cause accidents, vehicle damage, and deaths. Existing crowd‑sourced solutions (e.g., Waze) rely on manual taps, suffer from inaccurate locations, lack severity scoring, and provide no predictive capability. Municipalities lack a real‑time, verified hazard database.
 
-- **Real-World Impact:** Pothole-related accidents in India are underreported. MoRTH data shows thousands of road accident deaths annually; poor road conditions are a documented contributing factor in urban and rural areas. A real-time, community-verified hazard map enables riders to avoid danger and municipalities to prioritize repairs.
+- **Real‑World Impact:** MoRTH data shows thousands of road‑accident deaths annually, with poor road conditions a major factor. A real‑time, community‑verified hazard map can help riders avoid danger and give municipalities actionable data.
 
-- **The RoadBump Solution:** RoadBump is a vehicle-first road hazard detection system. When the phone is in a moving vehicle, the accelerometer-based auto-detection mode runs in the background, capturing impact signatures and automatically logging them as pins on a live map. Drivers and riders receive audible alerts and haptic feedback when new hazards are detected ahead. When the phone is on-foot (detected via motion state and GPS speed < 5 km/h), the app switches to pedestrian photo-reporting mode: a pedestrian walking next to a pothole opens the app, taps "Report Hazard", and takes a photo with their phone camera. The app captures the photo + GPS location + timestamp and instantly pins it on a live map. Nearby pedestrians and riders (within 500m) receive push notifications and see the pin on their map with the reporter's photo as evidence. The reporter gets feedback — other users confirm, reject, or add comments — and the pin's confidence score updates in real time. A municipal report generator produces formatted complaints with photos, GPS coordinates, and severity scores — turning crowd-sourced data into actionable civic intelligence.
-
-- **Product Relevance:** 100% software-based, requiring zero new hardware. Works on any Android phone with an accelerometer and GPS. Integrates with any navigation app as a hazard overlay. Processes everything locally on-device — no audio, no privacy concern, no network dependency for core detection.
+- **The RoadBump Solution:** A hybrid vehicle‑first auto‑detection system complemented by a pedestrian photo‑reporting mode. The app runs entirely on‑device, captures hazards via accelerometer or camera, tags them with GPS, pushes them to a live map, and allows community verification. Verified hazards can be exported as formatted municipal complaints.
 
 ---
 
-## 2. Technology Stack Overview
+## 2. Refined Pothole‑Watch Workflow (RoadBump)
 
-- **Language & UI:** **Kotlin** with **Jetpack Compose** (Material 3) for reactive, modern UI development.
-- **Sensor Capture (Primary Vehicle Mode):** **Accelerometer** (100 Hz continuous stream) + **GPS** (location + speed at impact moment).
-- **Pedestrian Photo Capture:** **CameraX** for manual hazard photo capture + **GPS** for location + **ExifInterface** for timestamp metadata.
-- **Audio System:** **AudioTrack** for hazard alert tones + **TextToSpeech** for voice warnings + **Vibrator** for haptic feedback patterns.
-- **Push Notifications:** **Firebase Cloud Messaging (FCM)** for real-time alerts to nearby drivers/riders and pedestrians.
-- **Machine Learning:** **TensorFlow Lite (Task Library)** running a quantized (int8) classifier trained on impact signatures — 4 classes: pothole, speed-breaker, metal-plate, flat-road.
-- **Background Execution:** Android **LifecycleService** with `foregroundServiceType="location"`.
-- **Map & Visualization:** **Google Maps SDK** or **OpenStreetMap** with clustered, color-coded hazard pins.
-- **Municipal Reporting:** Formatted complaint generator with PDF/email output — photos + GPS + severity + timestamp.
-- **Community Verification:** User-confirmation pipeline — nearby users validate/reject pins, score updates dynamically.
-- **Local Data & Analytics:** **Room SQLite** (with KSP) and Coroutines/Flow for asynchronous event logging.
-- **Night Mode:** Screen overlay warnings for upcoming hazards within 200m — LED flash + vibration pattern.
-- **Audio/Haptic Alerts:** Configurable alert tones, voice warnings, and vibration patterns based on hazard type and severity.
+### Goal & Constraints
+- **Goal:** Build a functional 36‑hour prototype that detects potholes (and related hazards) using a smartphone, confirms them with the user, logs GPS, syncs to Firebase, displays on a live map, and enables CSV export.
+- **Constraints:** 36‑hour hackathon, ₹80k prize pool, 5‑rubric scoring (innovation, impact, technical depth, completeness, vision).
+
+### Core User Flow (MVP)
+| Step | User Action | System Reaction |
+|------|--------------|-----------------|
+| **1. Scan** | Open the app, point the camera (or keep phone in vehicle). | Camera feed runs TF‑Lite model (~2 fps) classifying frames as *pothole* or *clear*.
+| **2. Confirm** | Tap **Confirm** on thumbnail preview. | Detection stored locally, timestamped, GPS‑tagged.
+| **3. Tag (opt.)** | Add severity rating (1‑3) or note. | Data attached to the detection.
+| **4. Upload** | Press **Sync**. | All confirmed detections batch‑written to Firebase Firestore with timestamp & GPS.
+| **5. Visualize** | Open Map view. | Google Maps shows clustered pins; tapping a pin opens the thumbnail.
+| **6. Export** | Press **Export CSV**. | Generates CSV with lat, lng, timestamp, severity, note.
+
+### Admin Notification & Approval Loop
+1. **Instant Push:** As soon as a provisional pin is written, **Firebase Cloud Messaging (FCM)** pushes a notification to the **Admin phone** (or any device subscribed as admin). The notification includes the GPS coordinates, impact severity, and a small thumbnail if a photo was captured.
+2. **Admin Review:** The admin opens the notification, sees a detail screen with the impact data and optional photo, then taps **Approve**.
+3. **Approved Pin Broadcast:** The pin’s `status` changes to `approved`. All nearby **crossing users** (vehicles or pedestrians within ~500 m) receive a **real‑time alert** via FCM:
+   - **Alarm:** A short audible tone (configurable per severity).
+   - **Night‑Mode Flash:** If the device is in night mode (or the system time is after sunset), the screen flashes a low‑brightness, high‑contrast overlay for 2 seconds to draw attention without blinding the driver.
+4. **Map Update:** The approved pin appears on the public map instantly for all users.
+5. **Admin Panel Sync:** Simultaneously, a structured report (JSON/PDF) containing GPS, severity, timestamp, and optional photo URL is sent to the **admin dashboard** (a simple web endpoint) for municipal filing.
+
+### Community Verification
+- Any user can tap the pin and cast a **positive** (“There is a pothole”) or **negative** (“Not a pothole”) vote.
+- **3 positive votes** → pin status becomes **Verified** (green check‑mark).
+- **2 negative votes** → pin status becomes **Unverified** (orange border) and the admin is notified for manual review.
+- Verified pins retain the alarm/flash behavior for future crossing users, reinforcing safety.
+
+### Technical Stack (fast prototyping)
+- **Frontend:** React Native (Expo) – works on Android & iOS, hot‑reload.
+- **ML Model:** MobileNet‑V2 fine‑tuned on ~500 pothole images, exported as TensorFlow‑Lite (~1 MB).
+- **Location:** `expo-location` for GPS.
+- **Backend:** Firebase Firestore (free tier) + optional Firebase Functions.
+- **Map UI:** `react-native-maps` with clustering.
+- **Export:** `js‑csv‑writer` + `expo-sharing`.
+
+### MVP Scope (what we’ll deliver in 36 h)
+- Camera + on‑device inference with thumbnail preview.
+- User confirmation UI.
+- GPS tagging.
+- Firestore sync (no auth).
+- Live map with clustered pins.
+- CSV export.
+- Admin push notification, approval UI, and real‑time alert/flash for nearby users.
+- Photo capture optional, auto‑stamped and sent to admin panel.
+
+### Rubric Alignment (5‑rubric)
+| Rubric | How we score |
+|--------|--------------|
+| **Innovation** | On‑device ML + crowd‑sourced GIS + admin‑driven real‑time alert/flash for crossing users. |
+| **Impact** | Directly addresses a massive Indian road‑safety problem; data can be handed to municipalities. |
+| **Technical Depth** | Mobile inference, sensor‑fusion, real‑time map updates, admin push workflow, night‑mode safety overlay. |
+| **Completeness** | End‑to‑end flow from detection to export, ready for demo. |
+| **Presentation** | Clean UI, live map demo, admin approval, alarm/flash alerts, CSV export as tangible deliverable. |
+
+### Risks & Mitigations
+- **Insufficient training data** → use public pothole datasets (Kaggle) and augment; fallback to edge‑detect heuristic if confidence < 0.4.
+- **Firestore write limits** → batch writes, throttle to ≤ 10 writes/sec.
+- **Permission friction** → request camera & location on first launch with clear rationale.
+- **Map API key** → use Expo demo key now; replace with production key later.
+- **Alert fatigue** → configurable alert intensity and a quiet‑hours window (10 PM‑5 AM) where only vibration (no flash) is used.
+
+### Next‑Step Timeline (≈ 26 h, 10 h buffer)
+1. **UI mockups** – 2 h.
+2. **Training data prep** – 3 h.
+3. **Expo project scaffold** – 2 h.
+4. **ML inference integration** – 5 h.
+5. **GPS + Firestore sync** – 4 h.
+6. **Admin notification & approval UI** – 4 h.
+7. **Map view, alert/flash implementation & CSV export** – 4 h.
+8. **Testing & polish** – 6 h.
 
 ---
 
-## 3. Comprehensive System Architecture & Workflow
+## 3. Technology Stack Overview
 
-### 3.1 Pedestrian Photo-Report Flow (Primary Mode)
+- **Language & UI:** Kotlin with Jetpack Compose (Material 3) for Android implementation.
+- **Sensor Capture (Vehicle Mode):** Accelerometer (100 Hz) + GPS speed.
+- **Pedestrian Photo Capture:** CameraX + GPS + ExifInterface.
+- **Audio System:** AudioTrack + TextToSpeech + Vibrator.
+- **Push Notifications:** Firebase Cloud Messaging.
+- **Machine Learning:** TensorFlow Lite (Task Library) with quantized int8 classifier for four classes (pothole, speed‑breaker, metal‑plate, flat‑road).
+- **Background Execution:** Android LifecycleService with `foregroundServiceType="location"`.
+- **Map & Visualization:** Google Maps SDK or OpenStreetMap with clustered pins.
+- **Municipal Reporting:** PDF/email generator with photo, GPS, severity.
+- **Community Verification:** Validation pipeline – nearby users confirm/reject pins, score updates.
+- **Local Data & Analytics:** Room SQLite + Coroutines/Flow.
+- **Night Mode:** Screen overlay warnings, configurable alerts.
 
-```text
+---
+
+## 4. Comprehensive System Architecture & Workflow
+
+### 4.1 Pedestrian Photo‑Report Flow (Primary Mode)
+```
 [Pedestrian walks next to pothole]
    │
    ▼
-[Open RoadBump App] ──► Tap "Report Hazard" button
+[Open RoadBump] → Tap "Report Hazard"
    │
    ▼
-[CameraX opens] ──► User frames pothole in camera viewfinder
+[CameraX opens] → Frame pothole → Take photo
    │
    ▼
-[Take Photo] ──► User taps shutter → photo captured
-   │                 Auto-stamp: GPS location + timestamp via ExifInterface
+[Auto‑stamp GPS + timestamp via Exif]
    │
    ▼
-[Photo + GPS + Timestamp] ──► Upload to backend (FCM + REST)
+[Upload to backend (Firestore + Storage)] → Create pin
    │
    ▼
-[Backend Pin Creation] ──► Creates hazard pin on map
-   │                          Stores: photo URL, GPS, timestamp, reporter ID, hazard type
-   │                          Sends FCM push to nearby users (within 500m)
+[FCM push to nearby users (≤ 500 m)] → Notification
    │
    ▼
-[Nearby Users Receive Alert] ──► Push notification: "New hazard reported 200m away"
-   │                                  App opens to map with pin highlighted
-   │                                  User views reporter's photo as evidence
+[Nearby users view pin, see photo]
    │
    ▼
-[Feedback Loop] ──► Nearby users confirm / reject / comment on pin
-   │                    3+ confirmations → pin verified (icon changes)
-   │                    2+ rejections → pin flagged for review
-   │                    Reporter sees feedback in-app
+[Feedback Loop] – Confirm / Reject / Comment
    │
    ▼
-[Municipal Report] ──► Verified pin → formatted complaint with photo + GPS
-   │                      Output: PDF / Email / Share intent
+[Verified pin → Municipal report (PDF/Email)]
 ```
 
-### 3.2 Vehicle Auto-Detection Flow (Secondary Mode)
-
-```text
-[Phone Accelerometer] ──► 100 Hz continuous g-force stream
+### 4.2 Vehicle Auto‑Detection Flow (Secondary Mode)
+```
+[Phone in moving vehicle (speed > 5 km/h)]
    │
    ▼
-[Impact Detection Gate] ──► RMS g-force threshold (> 2g sudden spike)
-   │                          High-pass filter (> 10Hz) to cut low-frequency noise
-   │                          (Below threshold? ──► Thread sleeps / Skip ML)
-   │
-   ▼ (Exceeds impact threshold)
-[GPS + Speed Capture] ──► Location + velocity at exact impact moment
+[Accelerometer 100 Hz] → High‑pass filter (>10 Hz)
    │
    ▼
-[TFLite Impact Classifier] ──► Processes 0.5s window of accelerometer data
-   │                              Classes: pothole / speed-breaker / metal-plate / flat
-   │                              2-of-3 consecutive window consensus for confirmed detection
+[RMS g‑force] – impact if > 2 g
    │
    ▼
-[Severity Scoring Engine] ──► Depth estimate from g-force amplitude + impact duration
-   │                            Severity: Minor / Moderate / Severe / Critical
-   │                            (Scale calibrated against known pothole dimensions)
+[Capture 0.5 s window + GPS]
    │
    ▼
-[Duplicate Filter] ──► Cluster nearby pins (within 50m), average severity, increment count
-   │                     Same location already pinned? ──► Update existing pin (add report)
+[TFLite classifier] → Class (pothole / speed‑breaker / metal‑plate / flat)
    │
    ▼
-[Map Pin Rendering] ──► Google Maps / OpenStreetMap overlay
-   │                      Color-coded: Green (minor) / Yellow (moderate) / Orange (severe) / Red (critical)
-   │                      Cluster mode when > 5 pins in viewport
+[Severity scoring] (amplitude + speed normalization)
    │
    ▼
-[Community Verification Layer] ──► Nearby users see pin → confirm / reject
-   │                                  3+ confirmations → pin locked (verified)
-   │                                  2+ rejections → pin flagged for review
+[Duplicate filter (≤ 50 m)] – update existing pin or create new
    │
    ▼
-[Municipal Report Generator] ──► Formatted complaint: GPS, severity, photo, timestamp
-   │                               Output: PDF / Email / Share intent
-   │                               Optional: auto-submit to municipal API (if available)
+[Map pin rendering] – color‑coded severity
    │
    ▼
-[Night Mode Warning System] ──► Upcoming hazards within 200m → screen flash + vibration
-                              │                              Pattern: 2 short pulses for moderate
-                              │                              Pattern: 3 short pulses for severe
+[Alert] – audio tone, voice warning, vibration pattern
+   │
    ▼
-[Room SQLite Database] ──► Coroutine logs: ID, timestamp, class, severity, GPS, confirmation count
+[FCM push to nearby users] – distance & ETA
+   │
+   ▼
+[Admin Notification & Approval]
+   │   1. Admin receives push with pin data & optional photo.
+   │   2. Admin opens dashboard, taps **Approve**.
+   │   3. Pin becomes `approved` and is broadcast.
+   ▼
+[Crossing Users Alert]
+   │   - Devices within ~500 m receive a **real‑time alarm**.
+   │   - If night mode active, screen flashes a low‑brightness overlay for 2 seconds.
+   ▼
+[Community verification] – 3+ confirmations → verified; 2+ rejections → unverified.
+   ▼
+[Municipal report generator] – PDF/email with GPS, severity, photo (if any).
 ```
 
 ---
 
-## 4. Edge Case Mitigation Matrix (Technical Depth)
-
-| Edge Case / Risk | Root Cause | Architectural Fix & Technology Used |
-| --- | --- | --- |
-| **Pedestrian Photo Accuracy** | User takes photo of wrong location or blurry image | Auto-stamp GPS + timestamp via ExifInterface. Show GPS accuracy before allowing upload (> 10m). Show photo preview before submit. Reject if GPS accuracy too low. |
-| **Reporter Identity & Spam** | Fake reports, duplicate photos, spam pins | Require user authentication (phone number OTP). Rate limit: max 5 reports per hour per user. Auto-detect duplicate photos (perceptual hash). Report count visible on pin. |
-| **Nearby User Notification Delay** | Pedestrian reports pothole, next user 500m away doesn't get alert in time | FCM push notification sent immediately on pin creation. In-app map updates in real time via WebSocket/Firestore. Alert includes distance + ETA. |
-| **Photo Storage & Bandwidth** | Large photos drain storage and data | Compress photos to 800px width before upload. Auto-delete local cache after 24h. Store photos in cloud storage (Firebase Storage), not locally. |
-| **Offline Pedestrian Mode** | Pedestrian in rural area with no network | Local SQLite cache stores report locally. GPS + photo captured offline. Auto-sync when network returns. Map tiles cached offline for pre-downloaded regions. |
-| **Pedestrian vs Vehicle Pin Confusion** | Pedestrian photo pin and vehicle impact pin look the same | Different pin icons: pedestrian = person icon, vehicle = car icon. Different color coding. Different data model (photo vs accelerometer). |
-| **Passenger vs Driver False Reports** | Passenger phone detects impact → wrong location pinned | Motion state detection: accelerometer pattern + GPS speed → only report when phone is in a moving vehicle (speed > 5 km/h). Passenger mode: detect stationary or inconsistent motion → suppress reporting. |
-| **Speed-Breaker vs Pothole Misclassification** | Both produce g-force spikes, similar amplitude | Use the g-force *pattern*, not just amplitude. Speed-breakers produce smooth ramp-up/ramp-down (gradual). Potholes produce sharp spike + drop (abrupt). TFLite classifier trained on waveform shape differences. 2-of-3 frame consensus required. |
-| **False Positives (Braking, Turning, Curb Hit)** | Normal driving produces g-force spikes | Require: impact + GPS speed > 5 km/h + consistent waveform pattern (2-of-3). Add a minimum duration filter: pothole impacts last 50-150ms; braking lasts 500ms+. Discard events outside the impact window. |
-| **Duplicate Pins (10 people hit same pothole)** | Each detection creates a new pin | Cluster pins within 50m radius. Average severity, increment report count. Show "12 reports" on pin. Only create new pin if > 50m from existing. |
-| **Battery Drain (100Hz Accelerometer)** | Continuous sensor stream drains battery | Stage-1 gate: only process when g-force exceeds threshold. Sleep at 1 Hz when stationary. Batch uploads every 5 min. Low-power mode when phone is charging/parked. |
-| **Phone Orientation Variability** | Phone in pocket vs dashboard vs holder changes accelerometer axes | Calibrate on startup: detect flat vs tilted orientation. Normalize accelerometer vectors to world coordinates (gravity-compensated). Auto-detect mounting via motion pattern. |
-| **No Municipal API** | No government system accepts pothole reports via API | Generate formatted PDF/email complaint with all data. User manually sends to municipal email. Store municipal contact list per city. "Share" intent for WhatsApp/SMS. |
-| **Community Verification Spam** | False confirmations inflate pin score | Require minimum 50m distance for verification (can't verify your own pin). Time-window: verification only valid within 24h of pin creation. After 7 days, pins auto-fade from map unless re-verified. |
-| **Network Unavailability (Rural Roads)** | No internet → can't pin map or submit reports | Local SQLite cache. Pins stored locally. Sync when network returns. Map tiles cached offline (pre-download region). Core detection works 100% offline. |
-| **Night Mode False Alerts** | Screen flash distracts driver at night | Adaptive brightness: flash only if screen brightness < 20%. Vibration-only mode option. "Quiet hours" toggle (10 PM - 5 AM) → vibration only, no screen flash. |
-| **Impact Magnitude Calibration** | Same pothole feels different at 40 km/h vs 20 km/h | Severity score normalizes for vehicle speed. Higher speed = higher expected g-force for same pothole. If measured g-force < expected for speed → severity downgraded. |
-| **Lateral Offset Uncertainty** | Phone cannot sense left/right position of hazard relative to vehicle lane | Community verification as primary safeguard: only pins with 3+ confirmations from same-lane drivers gain high confidence. Safety-first default: treat any verified impact as potential hazard with UI messaging: "Hazard detected. May be in adjacent lane. Reduce speed if unsure." Future enhancement: camera-based lateral localization via lane marking detection. |
-| **Pedestrian Photo Accuracy** | User takes photo of wrong location or blurry image | Auto-stamp GPS + timestamp via ExifInterface. Show GPS accuracy before allowing upload (> 10m). Show photo preview before submit. Reject if GPS accuracy too low. |
-| **Reporter Identity & Spam** | Fake reports, duplicate photos, spam pins | Require user authentication (phone number OTP). Rate limit: max 5 reports per hour per user. Auto-detect duplicate photos (perceptual hash). Report count visible on pin. |
-| **Nearby User Notification Delay** | Pedestrian reports pothole, next user 500m away doesn't get alert in time | FCM push notification sent immediately on pin creation. In-app map updates in real time via WebSocket/Firestore. Alert includes distance + ETA. |
-| **Photo Storage & Bandwidth** | Large photos drain storage and data | Compress photos to 800px width before upload. Auto-delete local cache after 24h. Store photos in cloud storage (Firebase Storage), not locally. |
-| **Offline Pedestrian Mode** | Pedestrian in rural area with no network | Local SQLite cache stores report locally. GPS + photo captured offline. Auto-sync when network returns. Map tiles cached offline for pre-downloaded regions. |
-| **Pedestrian vs Vehicle Pin Confusion** | Pedestrian photo pin and vehicle impact pin look the same | Different pin icons: pedestrian = person icon, vehicle = car icon. Different color coding. Different data model (photo vs accelerometer). |
-| **Safety Disclaimer** | Wrong hazard label → driver swerves → accident | All pins labeled "unverified" until 3 confirmations. UI shows "caution, not guarantee." Pitch: "RoadBump is an assistive awareness tool, not a navigation guarantee." |
+## 5. Edge‑Case Mitigation Matrix (Technical Depth)
+| Edge Case / Risk | Root Cause | Fix |
+|---|---|---|
+| **Pedestrian photo accuracy** | Wrong location / blurry image | Auto‑stamp GPS & timestamp, require ≥ 10 m accuracy, preview before submit |
+| **Reporter spam** | Fake reports | OTP phone auth, rate‑limit 5 reports/hr, perceptual‑hash duplicate detection |
+| **Notification delay** | Network latency | Immediate FCM push, in‑app Firestore listener for real‑time map updates |
+| **Photo bandwidth** | Large images | Compress to 800 px width before upload, auto‑delete local cache after 24 h |
+| **Offline mode** | No network | Local SQLite cache, auto‑sync on reconnection, map tile caching |
+| **Pin type confusion** | Pedestrian vs vehicle pins | Different icons (person vs car), separate data models |
+| **False positives (braking, turning)** | Normal driving spikes | Stage‑1 gate (g‑force > 2 g) + speed > 5 km/h + waveform pattern consensus |
+| **Battery drain** | Continuous sensor stream | Stage‑1 gate, sleep at 1 Hz when idle, low‑power mode while charging |
+| **Night‑mode distraction** | Screen flash | Adaptive brightness, vibration‑only option, quiet‑hours toggle |
+| **Severity calibration** | Speed variance | Normalize severity by speed (divide by √speed) |
+| **Safety disclaimer** | Over‑reliance | UI label "unverified – use with caution", no navigation guarantees |
 
 ---
 
-## 5. Critical Metrics to Measure & Pitch Validation
-
-To secure top marks in Technical Depth and Real-life Relevance, collect and present these metrics during the hackathon pitch:
-
-- **Pedestrian Photo Upload Accuracy:** Percentage of pedestrian reports with correct GPS location (> 10m accuracy) — target > 95%.
-- **Notification Delivery Rate:** Percentage of nearby users (within 500m) who receive FCM alert within 5 seconds of pin creation — target > 90%.
-- **Feedback Loop Speed:** Time from pedestrian photo upload to first community confirmation — target < 60 seconds.
-- **Photo Upload Success Rate:** Percentage of photo uploads that complete without error — target > 98%.
-- **Spam Report Rate:** Percentage of pins flagged as spam/duplicate — target < 5%.
-- **Detection Accuracy:** Classify 4 hazard types correctly — target > 85% precision, > 80% recall on test dataset (pre-recorded impact clips played through speaker). Log this in Room database.
-- **Severity Correlation:** Measure if severity score correlates with actual pothole depth (test with known potholes — measure with ruler, compare to score). Target: R² > 0.7.
-- **False Positive Rate:** Count false triggers per 10 km driven — target < 5 per km in city driving, < 2 per km on highway.
-- **Detection Latency:** Time from impact to pin appearing on map — target under 500 ms.
-- **Battery Drain:** Measure battery drop per hour with detection ON vs OFF — target < 5%/hr with Stage-1 gate.
-- **Community Verification Rate:** Percentage of pins verified by community within 24h — target > 60%.
-- **Duplicate Filter Efficiency:** Count of duplicate reports merged vs unique pins — target > 80% merge rate in dense areas.
-- **Night Mode Alert Accuracy:** False alert rate at night — target < 2 per 10 km.
-- **Offline Capability:** Percentage of core features working without network — target 100% for detection, 90% for map (cached tiles).
-- **Pedestrian Photo Accuracy:** Percentage of pedestrian reports with correct GPS location (> 10m accuracy) — target > 95%.
-- **Notification Delivery Rate:** Percentage of nearby users (within 500m) who receive FCM alert within 5 seconds of pin creation — target > 90%.
-- **Feedback Loop Speed:** Time from pedestrian photo upload to first community confirmation — target < 60 seconds.
-- **Photo Upload Success Rate:** Percentage of photo uploads that complete without error — target > 98%.
-- **Spam Report Rate:** Percentage of pins flagged as spam/duplicate — target < 5%.
+## 6. Critical Metrics to Measure & Pitch Validation
+- Pedestrian photo GPS accuracy (> 10 m) – target > 95%
+- Notification delivery (≤ 5 s) – target > 90%
+- Feedback loop speed (first confirmation) – target < 60 s
+- Photo upload success – target > 98%
+- Spam report rate – target < 5%
+- Detection accuracy (4‑class) – precision > 85%, recall > 80%
+- Severity correlation (R²) – target > 0.7
+- False‑positive rate – < 5/10 km city, < 2/10 km highway
+- Detection latency – < 500 ms
+- Battery drain – < 5%/hr with detection ON
+- Community verification rate – > 60% pins verified within 24 h
+- Duplicate filter efficiency – > 80% merge rate in dense areas
 
 ---
 
-## 6. Final Submission Checklist
+## 7. Final Submission Checklist
+- **Working APK & Codebase** – clean Git repo with tags.
+- **Documentation** – comprehensive README with architecture diagram (sections above).
+- **Backup Demo Video** – screen capture of both pedestrian & vehicle modes, admin approval, and alert/flash behavior.
+- **Pitch Deck** – problem, solution, technical depth, metrics, demo, roadmap.
+- **Test Data Assets** – impact clips for each class.
+- **Safety Disclaimer** – clear notice in app and presentation.
+- **Municipal Integration Demo** – formatted complaint generation.
 
-Ensure this complete submission pack is ready for VistERA judges before the 36-hour deadline:
+---
 
-- **Working APK & Codebase:** A clean Git repository containing tagged commits and the installable APK.
-- **Documentation:** A comprehensive README file that includes the system architecture diagram (section 3 above).
-- **Backup Demo Video:** A pre-recorded screen capture showing the phone detecting impacts, classifying hazards, and pinning them on the live map — acting as insurance if the live demo fails in a noisy hackathon hall.
-- **The Pitch Deck:** Slides covering the problem statement (MoRTH data), solution architecture, technical depth (ML classifier + multi-sensor fusion), community verification model, metrics/database results, privacy guarantees (all on-device), and future roadmap.
-- **Test Data Assets:** Pre-recorded impact clips for 4 hazard types + test dataset with ground-truth labels for accuracy measurement.
-- **Safety Disclaimer:** Clear disclaimer in app and presentation: "RoadBump is an assistive awareness tool, not a navigation guarantee. Always follow traffic rules and road conditions."
-- **Municipal Integration Demo:** Show a formatted complaint generated from a detected hazard — email/PDF/Share intent. Even without a real API, this proves the civic-value pipeline.
+*Prepared for VistERA 2026 Hackathon | Team RoadBump*
