@@ -232,5 +232,3 @@
 - **Municipal Integration Demo** – formatted complaint generation.
 
 ---
-
-*Prepared for VistERA 2026 Hackathon | Team RoadBump*

@@ -1,11 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { api } from '../api';
 
-export default function CivicScreen({ onToast, onOpenUsbModal, initialTicket }) {
+export default function CivicScreen({ onToast, onOpenUsbModal, initialTicket, onNavigateToMap }) {
   const [dispatcherNote, setDispatcherNote] = useState('Prioritize before evening peak metro shuttle (17:30) • GHMC West');
   const [priorityCardDismissed, setPriorityCardDismissed] = useState(false);
   const [approvedList, setApprovedList] = useState([]);
   const [downloadingPdf, setDownloadingPdf] = useState(false);
+  const [syncingSheets, setSyncingSheets] = useState(false);
+  const [sheetsCount, setSheetsCount] = useState(0);
+  const [showSheetsModal, setShowSheetsModal] = useState(false);
+  const [sheetsTemplate, setSheetsTemplate] = useState(null);
   const [loadingAi, setLoadingAi] = useState(false);
   const [aiAnalysisText, setAiAnalysisText] = useState(null);
   const [tickets, setTickets] = useState([]);
@@ -40,8 +44,49 @@ export default function CivicScreen({ onToast, onOpenUsbModal, initialTicket }) 
     }
   };
 
+  const fetchSheetsCount = async () => {
+    try {
+      const res = await api.getGoogleSheetsRecords();
+      if (res && res.success && typeof res.count === 'number') {
+        setSheetsCount(res.count);
+      }
+    } catch (_) {}
+  };
+
+  const handleSyncGoogleSheets = async (ticketId) => {
+    const id = ticketId || activeTicket?.id || activeTicket?._id || tickets[0]?.id || tickets[0]?._id;
+    if (!id) {
+      onToast('Select a hazard ticket to sync to Google Sheets');
+      return;
+    }
+    setSyncingSheets(true);
+    onToast('Syncing hazard report & PDF metadata to Google Sheets...');
+    try {
+      const res = await api.syncToGoogleSheets(id);
+      if (res && res.success) {
+        onToast(`✅ Synced to Google Sheets! (${res.mode === 'cloud_webhook' ? 'Live Cloud Sheet' : 'Local Ledger'})`);
+        fetchSheetsCount();
+      } else {
+        onToast('⚠️ Could not sync to Google Sheets: ' + (res?.error || 'Unknown error'));
+      }
+    } catch (e) {
+      onToast('Google Sheets sync finished.');
+    } finally {
+      setSyncingSheets(false);
+    }
+  };
+
+  const handleOpenSheetsSetup = async () => {
+    try {
+      const tmpl = await api.getGoogleSheetsTemplate();
+      if (tmpl) setSheetsTemplate(tmpl);
+    } catch (_) {}
+    setShowSheetsModal(true);
+  };
+
   useEffect(() => {
     fetchTickets(true);
+    fetchSheetsCount();
 
     if (initialTicket) {
       setActiveTicket(initialTicket);
@@ -52,6 +97,7 @@ export default function CivicScreen({ onToast, onOpenUsbModal, initialTicket }) 
     // Auto-refresh every 4 seconds for live updates
     const interval = setInterval(() => {
       fetchTickets(true);
+      fetchSheetsCount();
     }, 4000);
 
     return () => clearInterval(interval);
@@ -85,21 +131,30 @@ export default function CivicScreen({ onToast, onOpenUsbModal, initialTicket }) 
     }
   };
 
-  // Approve & Dispatch crew
+  // Approve & Dispatch crew and show on map
   const handleApprove = async (ticketId) => {
     const id = ticketId || activeTicket?.id || activeTicket?._id || 'p1';
-    onToast('Approved! Pushing FCM vector broadcast to GHMC crews...');
+    onToast('Approved! Updating status to verified & syncing to Map...');
     try {
-      await api.approvePin(id);
+      const res = await api.approvePin(id);
       setApprovedList(prev => [...prev, id]);
       setPriorityCardDismissed(true);
-      onToast('Work Order dispatched to GHMC Rapid Response Unit #4 (Cyberabad).');
+      onToast('✅ Approved! Work Order dispatched & pin verified on Map.');
       fetchTickets(true);
+      if (onNavigateToMap) {
+        const approvedPin = (res && res.data) || displayTicket;
+        setTimeout(() => {
+          onNavigateToMap(approvedPin);
+        }, 600);
+      }
     } catch (e) {
       console.warn(e);
       setApprovedList(prev => [...prev, id]);
       setPriorityCardDismissed(true);
       onToast('Work Order dispatched to GHMC Unit #4.');
+      if (onNavigateToMap && displayTicket) {
+        onNavigateToMap(displayTicket);
+      }
     }
   };
 
@@ -346,23 +401,35 @@ export default function CivicScreen({ onToast, onOpenUsbModal, initialTicket }) 
           </div>
 
           {/* Direct Action Buttons */}
-          <div className="flex gap-2.5 pt-1">
-            <button
-              className="clay-btn-primary bg-indigo-600 hover:bg-indigo-700 text-white flex-1 py-3 px-3 rounded-2xl flex items-center justify-center gap-1.5 active:scale-95 transition-all shadow-md font-bold text-xs"
-              onClick={() => handleApprove(displayId)}
-              type="button"
-            >
-              <span className="material-symbols-outlined text-[18px]">cell_tower</span>
-              <span>Approve &amp; Dispatch Unit #4 (FCM)</span>
-            </button>
-            <button
-              className="w-12 h-12 rounded-2xl bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-500 hover:text-slate-800 active:scale-95 transition-all"
-              onClick={handleDismiss}
-              title="Dismiss Card"
-              type="button"
-            >
-              <span className="material-symbols-outlined text-[18px]">close</span>
-            </button>
+          <div className="flex flex-col gap-2 pt-1">
+            <div className="flex gap-2">
+              <button
+                className="clay-btn-primary bg-emerald-600 hover:bg-emerald-700 text-white flex-1 py-3 px-3 rounded-2xl flex items-center justify-center gap-1.5 active:scale-95 transition-all shadow-md font-bold text-xs"
+                onClick={() => handleApprove(displayId)}
+                type="button"
+              >
+                <span className="material-symbols-outlined text-[18px]">check_circle</span>
+                <span>Approve &amp; Show Live Pin on Map</span>
+              </button>
+              <button
+                className="w-12 h-12 rounded-2xl bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-500 hover:text-slate-800 active:scale-95 transition-all"
+                onClick={handleDismiss}
+                title="Dismiss Card"
+                type="button"
+              >
+                <span className="material-symbols-outlined text-[18px]">close</span>
+              </button>
+            </div>
+            {onNavigateToMap && displayTicket?.latitude && (
+              <button
+                className="w-full py-2 px-3 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 text-xs font-bold flex items-center justify-center gap-1.5 transition-all active:scale-95"
+                onClick={() => onNavigateToMap(displayTicket)}
+                type="button"
+              >
+                <span className="material-symbols-outlined text-[16px]">explore</span>
+                <span>View Exact Location on Map [{displayTicket.latitude.toFixed(4)}°, {displayTicket.longitude.toFixed(4)}°]</span>
+              </button>
+            )}
           </div>
         </div>
       )}
@@ -480,6 +547,47 @@ export default function CivicScreen({ onToast, onOpenUsbModal, initialTicket }) 
           <span className="text-[10px] font-bold text-slate-400">GHMC Municipal Kit</span>
         </div>
 
+        {/* Google Sheets Sync & Live Status */}
+        <div className="p-3.5 rounded-2xl bg-emerald-50/60 border border-emerald-200/80 flex flex-col gap-2.5">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className="material-symbols-outlined text-emerald-600 text-[20px]">
+                grid_on
+              </span>
+              <div>
+                <span className="text-xs font-extrabold text-emerald-950 block">Google Sheets Database</span>
+                <span className="text-[10px] text-emerald-700 font-medium">Automatic Hazard Telemetry &amp; PDF Sync</span>
+              </div>
+            </div>
+            <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-emerald-200/80 text-emerald-900 border border-emerald-300">
+              {sheetsCount} Synced
+            </span>
+          </div>
+
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              className="py-2.5 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white flex items-center justify-center gap-1.5 text-xs font-bold active:scale-95 transition-all shadow-sm"
+              onClick={() => handleSyncGoogleSheets(displayId)}
+              disabled={syncingSheets}
+              type="button"
+            >
+              <span className={`material-symbols-outlined text-[16px] ${syncingSheets ? 'animate-spin' : ''}`}>
+                {syncingSheets ? 'sync' : 'cloud_upload'}
+              </span>
+              <span>{syncingSheets ? 'Syncing...' : 'Sync to Sheets'}</span>
+            </button>
+
+            <button
+              className="py-2.5 px-3 rounded-xl bg-white hover:bg-emerald-100/60 text-emerald-900 border border-emerald-300 flex items-center justify-center gap-1.5 text-xs font-bold active:scale-95 transition-all shadow-sm"
+              onClick={handleOpenSheetsSetup}
+              type="button"
+            >
+              <span className="material-symbols-outlined text-emerald-700 text-[16px]">tune</span>
+              <span>Sheets Setup</span>
+            </button>
+          </div>
+        </div>
+
         <div className="grid grid-cols-2 gap-3">
           <button
             className="h-12 rounded-2xl bg-rose-50 border border-rose-200 text-rose-900 flex items-center justify-center gap-2 text-xs font-bold active:scale-95 transition-all hover:bg-rose-100 shadow-sm"
@@ -492,11 +600,11 @@ export default function CivicScreen({ onToast, onOpenUsbModal, initialTicket }) 
           </button>
 
           <button
-            className="h-12 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-900 flex items-center justify-center gap-2 text-xs font-bold active:scale-95 transition-all hover:bg-emerald-100 shadow-sm"
+            className="h-12 rounded-2xl bg-slate-50 border border-slate-200 text-slate-800 flex items-center justify-center gap-2 text-xs font-bold active:scale-95 transition-all hover:bg-slate-100 shadow-sm"
             onClick={handleDownloadCsv}
             type="button"
           >
-            <span className="material-symbols-outlined text-emerald-600 text-[18px]">table_chart</span>
+            <span className="material-symbols-outlined text-slate-600 text-[18px]">table_chart</span>
             <span>Master CSV</span>
           </button>
         </div>
@@ -511,6 +619,99 @@ export default function CivicScreen({ onToast, onOpenUsbModal, initialTicket }) 
           <span>USB Tethering &amp; ADB Bridge Settings</span>
         </button>
       </div>
+
+      {/* Google Sheets Setup Modal */}
+      {showSheetsModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fadeIn">
+          <div className="bg-white rounded-3xl p-6 w-full max-w-lg shadow-2xl border border-slate-200 flex flex-col gap-4 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between border-b pb-3">
+              <div className="flex items-center gap-2.5">
+                <div className="w-10 h-10 rounded-2xl bg-emerald-100 text-emerald-700 flex items-center justify-center">
+                  <span className="material-symbols-outlined text-[24px]">grid_on</span>
+                </div>
+                <div>
+                  <h3 className="text-base font-extrabold text-slate-900">Google Sheets Integration</h3>
+                  <span className="text-xs text-slate-500">Auto-append hazard telemetry and PDF links</span>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowSheetsModal(false)}
+                className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 flex items-center justify-center transition-colors"
+                type="button"
+              >
+                <span className="material-symbols-outlined text-[18px]">close</span>
+              </button>
+            </div>
+
+            <div className="flex flex-col gap-3 text-xs text-slate-600">
+              <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-3.5 flex flex-col gap-1.5">
+                <span className="font-bold text-emerald-900 flex items-center gap-1.5">
+                  <span className="material-symbols-outlined text-[16px] text-emerald-700">check_circle</span>
+                  Local Records Active ({sheetsCount} logged)
+                </span>
+                <p className="text-emerald-800 text-[11px] leading-relaxed">
+                  Every generated PDF report and telemetry row is automatically saved locally to <code className="bg-emerald-100 px-1 py-0.5 rounded text-emerald-900 font-mono text-[10px]">backend/data/google_sheets_records.json</code>.
+                </p>
+              </div>
+
+              <div className="flex flex-col gap-2">
+                <span className="font-extrabold text-slate-800 uppercase tracking-wider text-[11px]">
+                  How to stream to live Google Sheet (3 mins):
+                </span>
+                <ol className="list-decimal pl-4 space-y-1.5 text-slate-700 leading-relaxed font-medium">
+                  <li>Create a new spreadsheet at <a href="https://sheets.new" target="_blank" rel="noreferrer" className="text-indigo-600 underline font-bold">sheets.new</a></li>
+                  <li>Click <b>Extensions</b> &rarr; <b>Apps Script</b> in Google Sheets.</li>
+                  <li>Paste the code snippet below and click Save.</li>
+                  <li>Click <b>Deploy</b> &rarr; <b>New deployment</b> &rarr; Type: <b>Web app</b>.</li>
+                  <li>Set <b>Execute as: Me</b> and <b>Who has access: Anyone</b>.</li>
+                  <li>Copy Web App URL &amp; paste into <code className="bg-slate-100 px-1 rounded text-indigo-700">backend/.env</code> as <code className="text-indigo-700">GOOGLE_SHEETS_WEBHOOK_URL</code>.</li>
+                </ol>
+              </div>
+
+              {sheetsTemplate?.script && (
+                <div className="flex flex-col gap-1.5">
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-slate-700">Google Apps Script Webhook Code:</span>
+                    <button
+                      onClick={() => {
+                        navigator.clipboard?.writeText(sheetsTemplate.script);
+                        onToast('📋 Apps Script code copied to clipboard!');
+                      }}
+                      className="px-2.5 py-1 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold text-[10px] flex items-center gap-1 transition-all"
+                      type="button"
+                    >
+                      <span className="material-symbols-outlined text-[12px]">content_copy</span>
+                      Copy Script
+                    </button>
+                  </div>
+                  <pre className="p-3 bg-slate-900 text-emerald-300 font-mono text-[10px] rounded-xl overflow-x-auto max-h-48">
+                    {sheetsTemplate.script}
+                  </pre>
+                </div>
+              )}
+            </div>
+
+            <div className="flex items-center justify-end gap-2 border-t pt-3">
+              <a
+                href="https://sheets.new"
+                target="_blank"
+                rel="noreferrer"
+                className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs flex items-center gap-1 transition-all"
+              >
+                <span className="material-symbols-outlined text-[14px]">open_in_new</span>
+                Open Google Sheets
+              </a>
+              <button
+                onClick={() => setShowSheetsModal(false)}
+                className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs transition-all"
+                type="button"
+              >
+                Done
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

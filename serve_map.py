@@ -10,7 +10,7 @@ import threading
 import time
 
 PORT = 8080
-DIRECTORY = "/c/Users/nagam/OneDrive/ドキュメント/projects/visteriacsmhackathon"
+DIRECTORY = "."
 
 class Handler(http.server.SimpleHTTPRequestHandler):
     def __init__(self, *args, **kwargs):

@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>RoadBump GPS Navigator Test</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+    <style>
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            padding: 20px;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f5f5f5;
+        }
+        .container { max-width: 400px; margin: 0 auto; background: white; border-radius: 12px; padding: 24px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        h1 { font-size: 1.5rem; margin-bottom: 1.5rem; text-align: center; color: #1f2937; }
+        .status { padding: 16px; border-radius: 8px; margin-bottom: 16px; text-align: center; font-weight: 500; }
+        .status.idle { background: #f3f4f6; color: #374151; }
+        .status.navigating { background: #dbeafe; color: #1e40af; }
+        .status.reached { background: #d1fae5; color: #065f46; }
+        .status.error { background: #fee2e2; color: #991b1b; }
+        .distance-display { font-size: 3rem; font-weight: 700; text-align: center; margin: 20px 0; color: #1f2937; }
+        .distance-display.reached { color: #059669; }
+        .btn { width: 100%; padding: 14px; border: none; border-radius: 8px; font-size: 1rem; font-weight: 600; cursor: pointer; }
+        .btn-primary { background: #3b82f6; color: white; }
+        .btn-primary:hover { background: #2563eb; }
+        .btn-secondary { background: #6b7280; color: white; }
+        .btn-secondary:hover { background: #4b5563; }
+        .btn-success { background: #10b981; color: white; }
+        .btn-success:hover { background: #059669; }
+        .info { font-size: 0.875rem; color: #6b7280; margin-top: 16px; text-align: center; }
+        .debug { font-size: 0.75rem; color: #9ca3af; margin-top: 12px; text-align: center; font-family: monospace; }
+        .heading-indicator { height: 8px; background: #e5e7eb; border-radius: 4px; margin: 16px 0; position: relative; }
+        .heading-indicator .marker { position: absolute; width: 4px; height: 24px; background: #3b82f6; top: -8px; transform: translateX(-50%); transition: left 0.3s ease; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧭 Walking Radar to Target 10m Ahead</h1>
+
+        <div id="status" class="status idle">Tap "Start Navigating" to begin</div>
+
+        <div class="distance-display" id="distanceDisplay">-- m</div>
+
+        <div class="heading-indicator">
+            <div id="headingMarker" class="marker" style="left: 50%;"></div>
+        </div>
+
+        <button id="startBtn" class="btn btn-primary" onclick="startNavigating()">Start Navigating</button>
+        <button id="stopBtn" class="btn btn-secondary" onclick="stopNavigating()" style="display:none;">Stop Navigating</button>
+        <button id="resetBtn" class="btn btn-success" onclick="resetNavigating()" style="display:none; margin-top: 8px;">Reset</button>
+
+        <div class="info">
+            Hold your phone and walk in the desired direction.<br>
+            Target is set 10m ahead. Vibrates 3× when within 2m.
+        </div>
+
+        <div class="debug" id="debugInfo">
+            GPS: Waiting... | Heading: --° | Target: --, --
+        </div>
+    </div>
+
+    <script>
+        // Configuration
+        const TARGET_DISTANCE_M = 10;    // 10 meters ahead
+        const ARRIVAL_THRESHOLD_M = 2;    // Consider reached within 2m
+        const MIN_DIST_FOR_HEADING = 1;   // Minimum movement for heading calc
+        const EARTH_RADIUS_M = 6378137;   // WGS84
+
+        // State
+        let watchId = null;
+        let lastPosition = null;
+        let targetPosition = null;
+        let isNavigating = false;
+        let targetReached = false;
+
+        // DOM elements
+        const statusEl = document.getElementById('status');
+        const distanceDisplay = document.getElementById('distanceDisplay');
+        const startBtn = document.getElementById('startBtn');
+        const stopBtn = document.getElementById('stopBtn');
+        const resetBtn = document.getElementById('resetBtn');
+        const headingMarker = document.getElementById('headingMarker');
+        const debugInfo = document.getElementById('debugInfo');
+
+        // Math helpers
+        const toRad = (deg) => deg * Math.PI / 180;
+        const toDeg = (rad) => rad * 180 / Math.PI;
+
+        const haversine = (lat1, lon1, lat2, lon2) => {
+            const dLat = toRad(lat2 - lat1);
+            const dLon = toRad(lon2 - lon1);
+            lat1 = toRad(lat1);
+            lat2 = toRad(lat2);
+            const a = Math.sin(dLat/2)**2 + Math.sin(dLon/2)**2 * Math.cos(lat1) * Math.cos(lat2);
+            return EARTH_RADIUS_M * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+        };
+
+        const calcDestination = (lat, lon, bearing, dist) => {
+            const latRad = toRad(lat), lonRad = toRad(lon), bearingRad = toRad(bearing);
+            const angDist = dist / EARTH_RADIUS_M;
+            const lat2Rad = Math.asin(Math.sin(latRad)*Math.cos(angDist) + Math.cos(latRad)*Math.sin(angDist)*Math.cos(bearingRad));
+            const lon2Rad = lonRad + Math.atan2(
+                Math.sin(bearingRad)*Math.sin(angDist)*Math.cos(latRad),
+                Math.cos(angDist) - Math.sin(latRad)*Math.sin(lat2Rad)
+            );
+            return { latitude: toDeg(lat2Rad), longitude: toDeg(lon2Rad) };
+        };
+
+        const calcBearing = (lat1, lon1, lat2, lon2) => {
+            const dLon = toRad(lon2 - lon1);
+            lat1 = toRad(lat1); lat2 = toRad(lat2);
+            const y = Math.sin(dLon) * Math.cos(lat2);
+            const x = Math.cos(lat1)*Math.sin(lat2) - Math.sin(lat1)*Math.cos(lat2)*Math.cos(dLon);
+            let bearing = toDeg(Math.atan2(y, x));
+            return ((bearing % 360) + 360) % 360;
+        };
+
+        // Vibration on arrival
+        function triggerArrivalAlert() {
+            if ('vibrate' in navigator) {
+                navigator.vibrate([100, 50, 100, 50, 100]);
+            }
+        }
+
+        // Update UI
+        function updateUI() {
+            if (!isNavigating && !targetReached) {
+                statusEl.textContent = 'Tap "Start Navigating" to begin';
+                statusEl.className = 'status idle';
+                startBtn.style.display = 'block';
+                stopBtn.style.display = 'none';
+                resetBtn.style.display = 'none';
+                distanceDisplay.textContent = '-- m';
+                distanceDisplay.className = 'distance-display';
+            } else if (isNavigating && !targetReached) {
+                statusEl.textContent = 'Walking towards target...';
+                statusEl.className = 'status navigating';
+                startBtn.style.display = 'none';
+                stopBtn.style.display = 'block';
+                resetBtn.style.display = 'none';
+                if (distanceToTarget !== null) {
+                    distanceDisplay.textContent = distanceToTarget.toFixed(1) + ' m';
+                }
+            } else if (targetReached) {
+                statusEl.textContent = '✅ Target Reached! Vibration alert triggered';
+                statusEl.className = 'status reached';
+                startBtn.style.display = 'none';
+                stopBtn.style.display = 'none';
+                resetBtn.style.display = 'block';
+                distanceDisplay.textContent = 'ARRIVED';
+                distanceDisplay.className = 'distance-display reached';
+            }
+        }
+
+        let distanceToTarget = null;
+        let currentHeading = null;
+
+        function onPositionUpdate(position) {
+            const { latitude, longitude } = position.coords;
+            const headingFromDevice = position.coords.heading;
+
+            // Calculate heading
+            let heading = null;
+            if (headingFromDevice !== null && !isNaN(headingFromDevice)) {
+                heading = headingFromDevice;
+                currentHeading = heading;
+            } else if (lastPosition) {
+                const moved = haversine(lastPosition.latitude, lastPosition.longitude, latitude, longitude);
+                if (moved >= MIN_DIST_FOR_HEADING) {
+                    heading = calcBearing(lastPosition.latitude, lastPosition.longitude, latitude, longitude);
+                    currentHeading = heading;
+                    lastPosition = { latitude, longitude };
+                }
+            }
+
+            // Set target if we have heading and no target yet
+            if (targetPosition === null && heading !== null && lastPosition) {
+                targetPosition = calcDestination(lastPosition.latitude, lastPosition.longitude, heading, TARGET_DISTANCE_M);
+            }
+
+            // Calculate distance to target
+            if (targetPosition) {
+                distanceToTarget = haversine(latitude, longitude, targetPosition.latitude, targetPosition.longitude);
+
+                // Update debug info
+                debugInfo.textContent = `GPS: ${latitude.toFixed(6)}, ${longitude.toFixed(6)} | Heading: ${heading !== null ? heading.toFixed(0)+'°' : 'calculating...'} | Target: ${targetPosition.latitude.toFixed(6)}, ${targetPosition.longitude.toFixed(6)} | Dist: ${distanceToTarget.toFixed(1)}m`;
+
+                // Update heading marker position (0-100% based on 0-360°)
+                if (currentHeading !== null) {
+                    const pct = (currentHeading / 360) * 100;
+                    headingMarker.style.left = pct + '%';
+                }
+
+                // Check arrival
+                if (distanceToTarget <= ARRIVAL_THRESHOLD_M && !targetReached) {
+                    targetReached = true;
+                    triggerArrivalAlert();
+                    updateUI();
+                    stopWatching();
+                } else {
+                    updateUI();
+                }
+            }
+        }
+
+        function onError(error) {
+            let msg = 'Unknown error';
+            switch(error.code) {
+                case error.PERMISSION_DENIED: msg = 'Location permission denied'; break;
+                case error.POSITION_UNAVAILABLE: msg = 'Location unavailable'; break;
+                case error.TIMEOUT: msg = 'GPS timeout'; break;
+            }
+            statusEl.textContent = 'Error: ' + msg;
+            statusEl.className = 'status error';
+            isNavigating = false;
+            updateUI();
+            stopWatching();
+        }
+
+        function startNavigating() {
+            if (!navigator.geolocation) {
+                alert('Geolocation not supported');
+                return;
+            }
+
+            isNavigating = true;
+            targetReached = false;
+            lastPosition = null;
+            targetPosition = null;
+            distanceToTarget = null;
+            currentHeading = null;
+
+            updateUI();
+
+            watchId = navigator.geolocation.watchPosition(onPositionUpdate, onError, {
+                enableHighAccuracy: true,
+                timeout: 10000,
+                maximumAge: 0
+            });
+        }
+
+        function stopNavigating() {
+            stopWatching();
+            isNavigating = false;
+            targetReached = false;
+            updateUI();
+        }
+
+        function resetNavigating() {
+            stopWatching();
+            isNavigating = false;
+            targetReached = false;
+            lastPosition = null;
+            targetPosition = null;
+            distanceToTarget = null;
+            currentHeading = null;
+            updateUI();
+            debugInfo.textContent = 'GPS: Waiting... | Heading: --° | Target: --, --';
+        }
+
+        function stopWatching() {
+            if (watchId !== null) {
+                navigator.geolocation.clearWatch(watchId);
+                watchId = null;
+            }
+        }
+
+        // Handle page unload
+        window.addEventListener('beforeunload', stopWatching);
+    </script>
+</body>
+</html>

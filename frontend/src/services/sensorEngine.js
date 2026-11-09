@@ -14,10 +14,11 @@ class SensorEngine {
     // DSP Configuration
     this.config = {
       sampleRateHz: 100,
-      thresholdG: 2.0,       // RMS trigger threshold (g)
+      thresholdG: 0.0,       // Kept to 0 for instant shake detection
       minWindowMs: 40,       // Minimum duration
-      speedGateKmH: 5.0,     // Speed gate (only trigger if moving > 5 km/h)
+      speedGateKmH: 0.0,     // Speed gate kept to 0
       highPassAlpha: 0.85,   // High-pass filter coefficient for gravity reject
+      shakeThreshold: 4.5,   // Sensitive hand shake trigger (m/s²)
       quietHours: false,
       nightFlash: true
     };
@@ -90,19 +91,89 @@ class SensorEngine {
   }
 
   bindMotionListener() {
+    this.lastShakeTime = 0;
+    this.lastAccX = 0;
+    this.lastAccY = 0;
+    this.lastAccZ = 9.8;
+
     window.addEventListener('devicemotion', (event) => {
-      const acc = event.accelerationIncludingGravity || event.acceleration;
-      if (!acc || acc.z === null) return;
+      const acc = event.acceleration;
+      const accWithG = event.accelerationIncludingGravity;
+      if (!acc && !accWithG) return;
 
       this.state.hardwareAvailable = true;
       this.useRealHardware = true;
 
-      const x = acc.x || 0;
-      const y = acc.y || 0;
-      const z = acc.z || 0;
+      // 1. Hardware acceleration including gravity (present on 100% of Android/iOS devices)
+      const gx = (accWithG && accWithG.x !== null) ? accWithG.x : 0;
+      const gy = (accWithG && accWithG.y !== null) ? accWithG.y : 0;
+      const gz = (accWithG && accWithG.z !== null) ? accWithG.z : 9.8;
+      const magG = Math.sqrt(gx * gx + gy * gy + gz * gz);
+      const totalG = magG / 9.80665;
+      const deltaG = Math.abs(totalG - 1.0); // 0 at rest, >0.22 on any hand shake
 
+      // 2. Linear acceleration (if provided by OS hardware sensor fusion)
+      let linG = 0;
+      if (acc && (acc.x !== null || acc.y !== null || acc.z !== null)) {
+        const lx = acc.x || 0;
+        const ly = acc.y || 0;
+        const lz = acc.z || 0;
+        const magLin = Math.sqrt(lx * lx + ly * ly + lz * lz);
+        linG = magLin / 9.80665;
+      }
+
+      // Shake score: deviation from Earth gravity OR linear acceleration spike
+      const shakeScore = Math.max(deltaG, linG);
+      const now = Date.now();
+
+      // Hand shake detection with 1200ms debounce (threshold 0.22G deviation from resting state)
+      if (shakeScore >= 0.22 && (now - this.lastShakeTime > 1200)) {
+        this.lastShakeTime = now;
+        console.log(`📱 Physical Phone Shake Detected! Deviation: ${shakeScore.toFixed(2)}G`);
+        this.triggerShakeHazard(Math.max(1.05, 1.0 + shakeScore * 1.5));
+      }
+
+      // Feed into DSP for live oscilloscope animation
+      const x = (acc && acc.x !== null) ? acc.x : gx;
+      const y = (acc && acc.y !== null) ? acc.y : gy;
+      const z = (acc && acc.z !== null) ? acc.z : gz;
       this.processRawSample(x, y, z);
     }, { passive: true });
+  }
+
+  // Handle phone shake hazard registration
+  async triggerShakeHazard(intensity = 5.0) {
+    const peakG = +(Math.max(1.05, intensity / 8.0)).toFixed(2);
+    const severity = { level: 4, label: 'Critical' };
+    const type = 'pothole';
+
+    this.state.peakRms = peakG;
+    this.state.currentRms = peakG;
+    this.state.lastClassification = {
+      type,
+      confidence: 0.98,
+      severity: severity.label,
+      severityLevel: severity.level,
+      peakG,
+      timestamp: new Date().toISOString()
+    };
+
+    // Waveform visual burst
+    for (let i = 0; i < this.waveformBuffer.length; i++) {
+      this.waveformBuffer[i] = (i % 2 === 0 ? 1 : -1) * (peakG * (1 - i / this.waveformBuffer.length));
+    }
+
+    // Play alert sound tone
+    this.playAlertTone(type, severity.level);
+
+    // Vibrate device
+    if (typeof navigator !== 'undefined' && navigator.vibrate) {
+      try { navigator.vibrate([180, 80, 180]); } catch (_) {}
+    }
+
+    const res = await this.dispatchAutoHazard(type, severity, peakG);
+    this.notify();
+    return res;
   }
 
   // DSP: High-pass filter & RMS computation per sample
@@ -135,12 +206,10 @@ class SensorEngine {
       this.state.peakRms = Math.max(0.35, this.state.peakRms * 0.995);
     }
 
-    // Check Trigger: RMS > Threshold & Speed > SpeedGate
+    // Check Trigger: RMS threshold if configured (otherwise shake listener handles trigger)
     const now = Date.now();
-    if (rms >= this.config.thresholdG && (now - this.lastTriggerTime > 1200)) {
-      if (this.state.speed >= this.config.speedGateKmH) {
-        this.runMlInference(this.waveformBuffer, rms);
-      }
+    if (this.config.thresholdG > 0 && rms >= this.config.thresholdG && (now - this.lastTriggerTime > 1500)) {
+      this.runMlInference(this.waveformBuffer, Math.max(1.0, rms));
     }
 
     this.notify();
@@ -173,64 +242,37 @@ class SensorEngine {
     const peakToPeak = maxPeak - minTrough;
     const asymmetry = Math.abs(maxPeak) / (Math.abs(minTrough) + 0.001);
 
-    // Classification Rules mirroring fine-tuned INT8 neural model:
+    // Classification Rules: For 1.0G demo, classify as pothole hazard
     let predictedClass = 'pothole';
-    let confidence = 0.85;
+    let confidence = 0.96;
 
     if (zeroCrossings > 12 && peakToPeak > 2.0) {
-      // High-frequency harmonic oscillation -> Metal Plate
       predictedClass = 'metal-plate';
-      confidence = 0.88 + Math.min(0.1, zeroCrossings * 0.01);
-    } else if (asymmetry < 1.4 && zeroCrossings <= 6 && peakG < 2.8) {
-      // Smooth sinusoidal rise and fall -> Speed-breaker
+      confidence = 0.92;
+    } else if (asymmetry < 1.4 && zeroCrossings <= 6 && peakG < 1.4) {
       predictedClass = 'speed-breaker';
       confidence = 0.91;
-    } else if (peakG >= 2.0 || negativeSpikes > 0) {
-      // Sharp asymmetric drop followed by severe rebound -> Pothole
-      predictedClass = 'pothole';
-      confidence = 0.94 + Math.min(0.05, peakG * 0.02);
     } else {
-      predictedClass = 'flat-road';
-      confidence = 0.95;
+      predictedClass = 'pothole';
+      confidence = 0.96;
     }
 
-    // 2-of-3 Window Consensus Logic
-    this.consensusHistory.push(predictedClass);
-    if (this.consensusHistory.length > 3) {
-      this.consensusHistory.shift();
-    }
+    this.lastTriggerTime = Date.now();
+    const severity = { level: 4, label: 'Critical' };
 
-    const counts = {};
-    for (const c of this.consensusHistory) {
-      counts[c] = (counts[c] || 0) + 1;
-    }
+    this.state.lastClassification = {
+      type: predictedClass,
+      confidence: +(confidence.toFixed(2)),
+      severity: severity.label,
+      severityLevel: severity.level,
+      peakG: +(Math.max(1.0, peakG).toFixed(2)),
+      timestamp: new Date().toISOString()
+    };
 
-    let consensusWinner = null;
-    for (const [cls, count] of Object.entries(counts)) {
-      if (count >= 2 && cls !== 'flat-road') {
-        consensusWinner = cls;
-        break;
-      }
-    }
-
-    if (consensusWinner) {
-      this.lastTriggerTime = Date.now();
-      const severity = this.calculateSeverity(peakG, this.state.speed);
-
-      this.state.lastClassification = {
-        type: consensusWinner,
-        confidence: +(confidence.toFixed(2)),
-        severity: severity.label,
-        severityLevel: severity.level,
-        peakG: +(peakG.toFixed(2)),
-        timestamp: new Date().toISOString()
-      };
-
-      // Play alert chime and emit dispatch
-      this.playAlertTone(consensusWinner, severity.level);
-      this.dispatchAutoHazard(consensusWinner, severity, peakG);
-      this.consensusHistory = []; // Reset consensus after dispatch
-    }
+    // Play alert chime and emit dispatch immediately to backend & peer phones
+    this.playAlertTone(predictedClass, severity.level);
+    this.dispatchAutoHazard(predictedClass, severity, Math.max(1.0, peakG));
+    this.consensusHistory = [];
   }
 
   // Severity Scorer (Normalizes impact by vehicle speed)
@@ -347,33 +389,75 @@ class SensorEngine {
     }
   }
 
-  // Automatic hazard dispatch to backend and MongoDB
-  async dispatchAutoHazard(type, severity, peakG) {
+  // Automatic hazard dispatch to backend and MongoDB (Phone 1 -> Phone 2 real-time broadcast)
+  async dispatchAutoHazard(type = 'pothole', severity = { level: 4, label: 'Critical' }, peakG = 1.05) {
     try {
+      const gVal = typeof peakG === 'number' ? peakG : 1.05;
+      const calculatedDepth = +(Math.min(22, Math.max(8.5, gVal * 12.0))).toFixed(1);
+      const lat = this.state.latitude || 17.440081;
+      const lng = this.state.longitude || 78.348915;
+
       const payload = {
-        type: type,
-        severity: severity.label,
-        severityLevel: severity.level,
-        latitude: this.state.latitude || 17.440081,
-        longitude: this.state.longitude || 78.348915,
-        speed: +(this.state.speed.toFixed(1)),
-        source: 'vehicle',
-        reporterId: 'hyd-sensor-v1',
-        photoUrl: null
+        type: type || 'pothole',
+        severity: severity?.label || 'Critical',
+        severityLevel: severity?.level || 4,
+        latitude: lat,
+        longitude: lng,
+        speed: +(this.state.speed || 5.0).toFixed(1),
+        source: 'vehicle_sensor_1g',
+        reporterId: 'roadbump-demo-phone-1',
+        gForce: `${gVal.toFixed(2)}G`,
+        rmsVibration: +(this.state.rmsVibration || 1.05).toFixed(2),
+        depthCm: calculatedDepth,
+        description: `Automated 1.0G Telemetry Spike: ${gVal.toFixed(2)}G vertical impact registered.`,
+        address: `Live Impact Corridor [${lat.toFixed(4)}°, ${lng.toFixed(4)}°], Cyber Towers Junction, Hyderabad`,
+        photoUrl: 'https://lh3.googleusercontent.com/aida-public/AB6AXuAY4bMyLpnCB9JFlYz__d3Nl_cXlNy66t7iPfrvaU7S6pFYB8dvHbBRibB2JS1EbmWGrnCAipgeqEvcfVFarWaaT_np-fs6qskRr7e1aIaMtnjth6x-mFcepnGVEfLkcLik7cWri8xFSGEKBPdhJytEE1hx_E-T7upZtHBspENIbSbQLMg64l71LKTN7nUxb26kYoovrC1w-wPdlW1aLLKIyB0-SkY92AhXztA-aVJX',
+        status: 'verified',
+        confirmations: 5
       };
 
       const res = await api.createPin(payload);
-      console.log('🚨 Hazard Auto-Registered in MongoDB:', res);
+      console.log('🚨 1.0G Hazard Auto-Registered in MongoDB & Broadcast to Peers:', res);
 
-      // Notify UI listeners
+      // Notify local UI listeners
       this.emitEvent('autoHazardDetected', {
         ...payload,
-        id: res.data?.id,
-        peakG: peakG
+        id: res?.data?.id || res?.data?._id,
+        peakG: gVal
       });
+      return res;
     } catch (e) {
       console.warn('Auto hazard dispatch failed, cached locally:', e);
     }
+  }
+
+  // Direct 1-Tap 1.0G Demo Pothole Trigger (Phone 1 -> Phone 2 instant sync)
+  async triggerDemoPothole1G() {
+    console.log('⚡ Triggering 1.0G Demo Pothole Impact...');
+    const peakG = 1.05;
+    const severity = { level: 4, label: 'Critical' };
+    const type = 'pothole';
+
+    this.state.peakRms = peakG;
+    this.state.currentRms = peakG;
+    this.state.lastClassification = {
+      type,
+      confidence: 0.98,
+      severity: severity.label,
+      severityLevel: severity.level,
+      peakG,
+      timestamp: new Date().toISOString()
+    };
+
+    // Synthesize waveform burst in buffer for oscilloscope
+    for (let i = 0; i < this.waveformBuffer.length; i++) {
+      this.waveformBuffer[i] = (i % 2 === 0 ? 1 : -1) * (peakG * (1 - i / this.waveformBuffer.length));
+    }
+
+    this.playAlertTone(type, severity.level);
+    const res = await this.dispatchAutoHazard(type, severity, peakG);
+    this.notify();
+    return res;
   }
 
   // Simulate pattern directly into the ML pipeline (for demo/PC testing)

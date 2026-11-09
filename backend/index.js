@@ -5,6 +5,8 @@ const path = require('path');
 const PDFDocument = require('pdfkit');
 const { MongoClient, ObjectId } = require('mongodb');
 const cron = require('node-cron');
+const { uploadPDFToGovernment } = require('./services/governmentUploadService');
+const { uploadReportToGoogleSheets, loadLocalSheetsRecords, getGoogleAppsScriptTemplate } = require('./services/googleSheetsService');
 require('dotenv').config();
 
 const app = express();
@@ -12,6 +14,47 @@ const PORT = process.env.PORT || 5000;
 
 app.use(cors());
 app.use(express.json());
+
+// --- Real-time Multi-Device Event Stream (SSE) ---
+const sseClients = new Set();
+
+function broadcastEvent(eventType, payload) {
+  const eventString = `event: ${eventType}\ndata: ${JSON.stringify(payload)}\n\n`;
+  for (const client of sseClients) {
+    try {
+      client.write(eventString);
+    } catch (_) {
+      sseClients.delete(client);
+    }
+  }
+}
+
+// GET /api/events - Real-time SSE stream for multi-device sync
+app.get('/api/events', (req, res) => {
+  res.writeHead(200, {
+    'Content-Type': 'text/event-stream',
+    'Cache-Control': 'no-cache',
+    'Connection': 'keep-alive',
+    'Access-Control-Allow-Origin': '*'
+  });
+
+  res.write(`data: ${JSON.stringify({ type: 'connected', clients: sseClients.size + 1, time: new Date().toISOString() })}\n\n`);
+  sseClients.add(res);
+
+  const heartbeat = setInterval(() => {
+    try {
+      res.write(': heartbeat\n\n');
+    } catch (_) {
+      clearInterval(heartbeat);
+      sseClients.delete(res);
+    }
+  }, 20000);
+
+  req.on('close', () => {
+    clearInterval(heartbeat);
+    sseClients.delete(res);
+  });
+});
 
 // --- MongoDB Connection ---
 let mongoClient = null;
@@ -141,6 +184,10 @@ function startExpirationCron() {
 // 1. HEALTH & ROOT CHECK
 // ==========================================
 app.get('/', (req, res) => {
+  const indexPath = path.join(__dirname, '../frontend/dist/index.html');
+  if (fs.existsSync(indexPath) && (!req.headers.accept || !req.headers.accept.includes('application/json'))) {
+    return res.sendFile(indexPath);
+  }
   res.json({
     name: 'RoadBump Telemetry & Hazard API',
     status: 'online',
@@ -331,8 +378,8 @@ app.post('/api/pins', async (req, res) => {
       civicStatus,
       ward,
       reporterId,
-      status: 'provisional', // New reports start as provisional
-      confirmations: 1,
+      status: req.body.status || 'provisional',
+      confirmations: parseInt(req.body.confirmations) || (req.body.status === 'verified' ? 4 : 1),
       rejections: 0,
       reportCount: 1,
       createdAt: new Date().toISOString(),
@@ -370,7 +417,39 @@ app.post('/api/pins', async (req, res) => {
       }
     }
 
-    res.status(201).json({ success: true, message: 'Hazard registered', data: savedPin });
+    // ⚡ Real-Time Multi-Device Broadcast (Phone 1 -> Phone 2 instant sync)
+    const impactData = {
+      gForce: req.body.gForce || (newPin.severity === 'Critical' ? '2.85G' : newPin.severity === 'Severe' ? '1.95G' : '1.30G'),
+      rmsVibration: req.body.rmsVibration || (newPin.severity === 'Critical' ? 2.62 : 1.45),
+      depthCm: newPin.depthCm,
+      severity: newPin.severity,
+      severityLevel: newPin.severityLevel,
+      type: newPin.type,
+      latitude: newPin.latitude,
+      longitude: newPin.longitude,
+      address: newPin.address,
+      speed: newPin.speed,
+      source: newPin.source,
+      photoUrl: newPin.photoUrl,
+      timestamp: newPin.createdAt
+    };
+
+    broadcastEvent('hazard_detected', {
+      pin: savedPin,
+      impact: impactData,
+      sourceDevice: req.body.deviceId || 'phone_1_sensor'
+    });
+
+    // Auto-sync to Google Sheets in background
+    if (process.env.GOOGLE_SHEETS_AUTO_UPLOAD_ENABLED !== 'false') {
+      uploadReportToGoogleSheets(null, savedPin, {
+        enabled: true,
+        webhookUrl: process.env.GOOGLE_SHEETS_WEBHOOK_URL || '',
+        spreadsheetId: process.env.GOOGLE_SPREADSHEET_ID || ''
+      }).catch(err => console.warn('Background Sheets sync note:', err.message));
+    }
+
+    res.status(201).json({ success: true, message: 'Hazard registered', data: savedPin, impact: impactData });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
   }
@@ -396,9 +475,11 @@ app.patch('/api/pins/:id/approve', async (req, res) => {
         { _id: doc._id },
         {
           $set: {
-            status: 'approved',
+            status: 'verified',
+            civicStatus: 'dispatched',
             updatedAt: new Date().toISOString()
-          }
+          },
+          $inc: { confirmations: 2 }
         }
       );
       const updatedDoc = await hazardsCollection.findOne({ _id: doc._id });
@@ -406,7 +487,9 @@ app.patch('/api/pins/:id/approve', async (req, res) => {
     } else {
       const index = pins.findIndex(p => p.id === id);
       if (index === -1) return res.status(404).json({ success: false, message: 'Pin not found' });
-      pins[index].status = 'approved';
+      pins[index].status = 'verified';
+      pins[index].civicStatus = 'dispatched';
+      pins[index].confirmations = (pins[index].confirmations || 1) + 2;
       pins[index].updatedAt = new Date().toISOString();
       updatedPin = pins[index];
     }
@@ -431,6 +514,9 @@ app.patch('/api/pins/:id/approve', async (req, res) => {
         console.warn('FCM Broadcast error:', fcmErr.message);
       }
     }
+
+    // ⚡ Real-Time Multi-Device Broadcast
+    broadcastEvent('hazard_approved', { pin: updatedPin });
 
     res.json({ success: true, message: 'Pin approved and broadcasted', data: updatedPin });
   } catch (error) {
@@ -591,6 +677,112 @@ app.get('/api/pins/:id/report', async (req, res) => {
     });
 
     doc.end();
+
+    // Auto-upload to Google Sheets (non-blocking, doesn't affect user download)
+    if (process.env.GOOGLE_SHEETS_AUTO_UPLOAD_ENABLED !== 'false') {
+      (async () => {
+        try {
+          // Re-generate PDF buffer for Google Sheets sync
+          const uploadDoc = new PDFDocument({ margin: 50 });
+          let uploadBuffers = [];
+          uploadDoc.on('data', chunk => uploadBuffers.push(chunk));
+          uploadDoc.on('end', async () => {
+            const pdfBuffer = Buffer.concat(uploadBuffers);
+
+            const uploadMetadata = {
+              pinId: pin.id || pin._id,
+              timestamp: pin.createdAt,
+              location: { latitude: pin.latitude, longitude: pin.longitude },
+              hazardType: pin.type,
+              severity: pin.severity,
+              severityLevel: pin.severityLevel,
+              status: pin.status,
+              confirmations: pin.confirmations,
+              rejections: pin.rejections,
+              speed: pin.speed,
+              source: pin.source,
+              reporterId: pin.reporterId,
+              address: pin.address,
+              depthCm: pin.depthCm,
+              photoUrl: pin.photoUrl,
+              civicStatus: pin.civicStatus,
+              ward: pin.ward
+            };
+
+            const uploadResult = await uploadReportToGoogleSheets(
+              pdfBuffer,
+              uploadMetadata,
+              {
+                enabled: true,
+                webhookUrl: process.env.GOOGLE_SHEETS_WEBHOOK_URL || ''
+              }
+            );
+
+            if (uploadResult.success) {
+              console.log(`📊 [Google Sheets] Auto-synced report for pin ${pin.id || pin._id}: ${uploadResult.mode || 'success'}`);
+            } else {
+              console.warn(`⚠️ [Google Sheets] Sync note for pin ${pin.id || pin._id}:`, uploadResult.reason || uploadResult.error);
+            }
+          });
+          uploadDoc.end();
+        } catch (uploadError) {
+          console.error('❌ Error in Google Sheets PDF upload process:', uploadError);
+        }
+      })();
+    }
+
+    // Auto-upload to Municipal Corporation API (non-blocking, doesn't affect user download)
+    if (process.env.GOVERNMENT_API_AUTO_UPLOAD_ENABLED === 'true' && process.env.GOVERNMENT_API_URL && process.env.GOVERNMENT_API_KEY) {
+      (async () => {
+        try {
+          // Re-generate PDF buffer for municipal upload
+          const municipalDoc = new PDFDocument({ margin: 50 });
+          let municipalBuffers = [];
+          municipalDoc.on('data', chunk => municipalBuffers.push(chunk));
+          municipalDoc.on('end', async () => {
+            const pdfBuffer = Buffer.concat(municipalBuffers);
+
+            const uploadMetadata = {
+              pinId: pin.id || pin._id,
+              timestamp: pin.createdAt,
+              location: { latitude: pin.latitude, longitude: pin.longitude },
+              hazardType: pin.type,
+              severity: pin.severity,
+              severityLevel: pin.severityLevel,
+              status: pin.status,
+              confirmations: pin.confirmations,
+              rejections: pin.rejections,
+              speed: pin.speed,
+              source: pin.source,
+              reporterId: pin.reporterId,
+              address: pin.address,
+              depthCm: pin.depthCm,
+              photoUrl: pin.photoUrl
+            };
+
+            const { uploadPDFToGovernment } = require('./services/governmentUploadService');
+            const uploadResult = await uploadPDFToGovernment(
+              pdfBuffer,
+              uploadMetadata,
+              {
+                enabled: true,
+                apiUrl: process.env.GOVERNMENT_API_URL,
+                apiKey: process.env.GOVERNMENT_API_KEY
+              }
+            );
+
+            if (uploadResult.success) {
+              console.log(`✅ Auto-uploaded PDF for pin ${pin.id || pin._id} to municipal API`);
+            } else {
+              console.warn(`⚠️ Failed to auto-upload PDF for pin ${pin.id || pin._id}:`, uploadResult.reason || uploadResult.error);
+            }
+          });
+          municipalDoc.end();
+        } catch (uploadError) {
+          console.error('❌ Error in municipal PDF upload process:', uploadError);
+        }
+      })();
+    }
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
   }
@@ -621,6 +813,144 @@ app.get('/api/export/csv', async (req, res) => {
     res.setHeader('Content-Type', 'text/csv');
     res.setHeader('Content-Disposition', 'attachment; filename="roadbump-hazards.csv"');
     res.send(csvContent);
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// ==========================================
+// 6B. GOOGLE SHEETS SYNC ENDPOINTS
+// ==========================================
+
+// POST /api/pins/:id/google-sheets - Sync a hazard pin & PDF report to Google Sheets
+app.post('/api/pins/:id/google-sheets', async (req, res) => {
+  try {
+    const { id } = req.params;
+    let pin = null;
+
+    if (hazardsCollection) {
+      if (ObjectId.isValid(id)) {
+        pin = await hazardsCollection.findOne({ _id: new ObjectId(id) });
+      }
+      if (!pin) {
+        pin = await hazardsCollection.findOne({ id: id });
+      }
+      if (pin) pin = toPinDoc(pin);
+    }
+    if (!pin) {
+      pin = pins.find(p => p.id === id);
+    }
+
+    if (!pin) {
+      return res.status(404).json({ success: false, error: 'Hazard not found' });
+    }
+
+    // Generate PDF buffer
+    const doc = new PDFDocument({ margin: 50 });
+    let buffers = [];
+    doc.on('data', chunk => buffers.push(chunk));
+    
+    doc.on('end', async () => {
+      try {
+        const pdfBuffer = Buffer.concat(buffers);
+
+        const uploadMetadata = {
+          pinId: pin.id || pin._id,
+          timestamp: pin.createdAt,
+          location: { latitude: pin.latitude, longitude: pin.longitude },
+          hazardType: pin.type,
+          severity: pin.severity,
+          severityLevel: pin.severityLevel,
+          status: pin.status,
+          confirmations: pin.confirmations,
+          rejections: pin.rejections,
+          speed: pin.speed,
+          source: pin.source,
+          reporterId: pin.reporterId,
+          address: pin.address,
+          depthCm: pin.depthCm,
+          photoUrl: pin.photoUrl,
+          civicStatus: pin.civicStatus,
+          ward: pin.ward
+        };
+
+        const result = await uploadReportToGoogleSheets(
+          pdfBuffer,
+          uploadMetadata,
+          {
+            enabled: true,
+            webhookUrl: req.body?.webhookUrl || process.env.GOOGLE_SHEETS_WEBHOOK_URL || ''
+          }
+        );
+
+        res.json({
+          success: true,
+          message: 'Hazard report synced to Google Sheets',
+          ...result
+        });
+      } catch (uploadErr) {
+        res.status(500).json({ success: false, error: uploadErr.message });
+      }
+    });
+
+    // Write PDF Content
+    doc.fontSize(22).fillColor('#1E3A8A').text('ROAD HAZARD TELEMETRY REPORT', { align: 'center' });
+    doc.fontSize(10).fillColor('#4B5563').text('ROAD SAFETY & MUNICIPAL INFRASTRUCTURE AUDIT', { align: 'center' });
+    doc.moveDown(1.5);
+    doc.fontSize(14).fillColor('#111827').text(`Report ID: ${pin.id}`);
+    doc.moveDown(0.5);
+    doc.fontSize(12).text(`Timestamp: ${pin.createdAt}`);
+    doc.text(`Location (GPS): Latitude ${pin.latitude}, Longitude ${pin.longitude}`);
+    doc.text(`Hazard Type: ${pin.type.toUpperCase()}`);
+    doc.text(`Severity: ${pin.severity} (Level ${pin.severityLevel || 1})`);
+    doc.text(`Status: ${pin.status.toUpperCase()}`);
+    doc.text(`Community Confirmations: ${pin.confirmations} | Rejections: ${pin.rejections}`);
+    doc.text(`Speed at Detection: ${pin.speed ? pin.speed + ' km/h' : 'N/A'}`);
+    doc.text(`Detection Mode: ${pin.source.toUpperCase()}`);
+    doc.text(`Reporter ID: ${pin.reporterId || 'Anonymous'}`);
+    if (pin.photoUrl) {
+      doc.text(`Photo Evidence URL: ${pin.photoUrl}`);
+    }
+    doc.moveDown(2);
+    doc.fontSize(10).fillColor('#6B7280').text('Synced to Google Sheets via RoadBump Public Works Telemetry.', { align: 'justify' });
+    doc.end();
+
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// GET /api/google-sheets/records - Get all local cached Google Sheets records
+app.get('/api/google-sheets/records', (req, res) => {
+  try {
+    const records = loadLocalSheetsRecords();
+    res.json({
+      success: true,
+      count: records.length,
+      records: records,
+      webhookConfigured: Boolean(process.env.GOOGLE_SHEETS_WEBHOOK_URL)
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// GET /api/google-sheets/template - Get Google Apps Script Webhook template for zero-friction setup
+app.get('/api/google-sheets/template', (req, res) => {
+  try {
+    const script = getGoogleAppsScriptTemplate();
+    res.json({
+      success: true,
+      instructions: [
+        '1. Open Google Sheets (https://sheets.new) and create a new spreadsheet',
+        '2. In the top menu, go to Extensions -> Apps Script',
+        '3. Delete any default code, paste the script provided in `script` below, and click Save (Floppy disk icon)',
+        '4. Click Deploy -> New deployment -> Select type: Web app',
+        '5. Set "Execute as": "Me" and "Who has access": "Anyone"',
+        '6. Click Deploy, copy the Web App URL, and paste it into backend/.env as GOOGLE_SHEETS_WEBHOOK_URL'
+      ],
+      script: script
+    });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
   }
@@ -785,7 +1115,47 @@ app.get('/api/network-info', (req, res) => {
   });
 });
 
+// ==========================================
+// 10. SERVE STATIC FRONTEND & CLIENT ROUTING
+// ==========================================
+const distPath = path.join(__dirname, '../frontend/dist');
+if (fs.existsSync(distPath)) {
+  app.use(express.static(distPath));
+  console.log(`📦 Serving production frontend build from ${distPath}`);
+}
+
+app.use((req, res, next) => {
+  if (req.method === 'GET' && !req.path.startsWith('/api')) {
+    const indexPath = path.join(__dirname, '../frontend/dist/index.html');
+    if (fs.existsSync(indexPath)) {
+      return res.sendFile(indexPath);
+    }
+  }
+  next();
+});
+
 // Start Server listening on all network interfaces (0.0.0.0)
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 RoadBump Server is running on all interfaces: http://0.0.0.0:${PORT}`);
 });
+
+// Port 80 listener so http://172.16.2.161 (without port number) opens RoadBump immediately
+try {
+  const http80 = express();
+  http80.use(cors());
+  if (fs.existsSync(distPath)) {
+    http80.use(express.static(distPath));
+  }
+  http80.use((req, res) => {
+    const indexPath = path.join(__dirname, '../frontend/dist/index.html');
+    if (fs.existsSync(indexPath)) {
+      return res.sendFile(indexPath);
+    }
+    res.redirect(`http://${req.hostname}:${PORT}${req.url}`);
+  });
+  http80.listen(80, '0.0.0.0', () => {
+    console.log(`🌐 Port 80 HTTP server active: http://0.0.0.0/ serving RoadBump`);
+  }).on('error', (e) => {
+    console.log('Port 80 notice:', e.message);
+  });
+} catch (_) {}

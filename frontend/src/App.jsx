@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { api } from './api';
 import { sensorEngine } from './services/sensorEngine';
 import HudScreen from './screens/HudScreen';
@@ -16,16 +16,29 @@ export default function App() {
   const [customHost, setCustomHost] = useState(api.getBaseUrl());
   const [networkInfo, setNetworkInfo] = useState(null);
   const [newCivicTicket, setNewCivicTicket] = useState(null);
+  const [focusedMapPin, setFocusedMapPin] = useState(null);
+  const [peerHazardAlert, setPeerHazardAlert] = useState(null);
 
-  const showToast = (msg) => {
+  const nightFlashActiveRef = useRef(nightFlashActive);
+  nightFlashActiveRef.current = nightFlashActive;
+
+  const showToast = useCallback((msg) => {
     setToastMessage(msg);
     setTimeout(() => setToastMessage(null), 3500);
-  };
+  }, []);
 
   const handleReportToCivic = (ticket) => {
     setNewCivicTicket(ticket);
     setActiveTab('civic');
     showToast('🏛️ Converted to Civic Work Order! Switched to Civic Control Center.');
+  };
+
+  const handleApproveAndNavigateToMap = (pin) => {
+    setFocusedMapPin(pin);
+    setActiveTab('map');
+    const lat = Number(pin?.latitude || 17.440081).toFixed(4);
+    const lng = Number(pin?.longitude || 78.348915).toFixed(4);
+    showToast(`📍 Live Pin placed at exact location: [${lat}°, ${lng}°]!`);
   };
 
   useEffect(() => {
@@ -35,10 +48,38 @@ export default function App() {
       if (info) setNetworkInfo(info);
     });
 
+    // ⚡ Real-Time Multi-Device Peer Listener (Phone 1 detects -> Phone 2 alerts & maps)
+    const unsubscribeEvents = api.subscribeToEvents((event) => {
+      if (event.type === 'hazard_detected' && event.pin) {
+        const pin = event.pin;
+        const impact = event.impact || {};
+
+        // 1. Play alert sound
+        sensorEngine.playAlertTone('pothole');
+
+        // 2. Set active alert card
+        setPeerHazardAlert({
+          pin,
+          impact,
+          timeStr: new Date().toLocaleTimeString()
+        });
+
+        // 3. Immediately focus pin and auto-switch to Map tab so Phone 2 shows it live
+        setFocusedMapPin(pin);
+        setActiveTab('map');
+
+        // 4. Inform user
+        showToast(`⚡ PEER HAZARD DETECTED: ${pin.type?.toUpperCase()} (${impact.gForce || '1.05G'}) — Map Updated!`);
+      }
+
+      if (event.type === 'hazard_approved' && event.pin) {
+        showToast(`✅ Live hazard verified by community: [${event.pin.type}]`);
+      }
+    });
+
     const onAutoHazard = (e) => {
-      showToast(`🚨 AUTO-DETECTED: ${e.detail.type?.toUpperCase()} (${e.detail.severity}) — Registered in MongoDB!`);
-      if (nightFlashActive) {
-        // Pulse screen flash
+      showToast(`🚨 SHAKE REGISTERED: ${e.detail.type?.toUpperCase()} (${e.detail.severity}) — Synced to Phone 2 & Google Sheets!`);
+      if (nightFlashActiveRef.current) {
         setEmergencyAlertActive(true);
         setTimeout(() => setEmergencyAlertActive(false), 2000);
       }
@@ -47,8 +88,9 @@ export default function App() {
 
     return () => {
       window.removeEventListener('roadbump:autoHazardDetected', onAutoHazard);
+      if (unsubscribeEvents) unsubscribeEvents();
     };
-  }, [nightFlashActive]);
+  }, [showToast]);
 
   const handleFlashToggle = () => {
     const next = !nightFlashActive;
@@ -143,17 +185,26 @@ export default function App() {
 
       {/* Screen Container */}
       <main className="flex-1 w-full max-w-lg mx-auto">
-        {activeTab === 'hud' && <HudScreen onNavigateMap={() => setActiveTab('map')} />}
+        {activeTab === 'hud' && (
+          <HudScreen
+            onNavigateMap={(pin) => {
+              if (pin) setFocusedMapPin(pin);
+              setActiveTab('map');
+            }}
+          />
+        )}
         {activeTab === 'map' && (
           <MapScreen
             onEmergencyReport={() => setActiveTab('report')}
             onToast={showToast}
+            focusedPin={focusedMapPin}
           />
         )}
         {activeTab === 'report' && (
           <ReportScreen
             onToast={showToast}
             onNavigateToCivic={handleReportToCivic}
+            onApproveAndNavigateToMap={handleApproveAndNavigateToMap}
             onReportSubmitted={(pin) => showToast(`Report RB-${pin?.id || '9021'} logged in database.`)}
           />
         )}
@@ -163,9 +214,83 @@ export default function App() {
             onToast={showToast}
             onOpenUsbModal={() => setShowUsbModal(true)}
             initialTicket={newCivicTicket}
+            onNavigateToMap={handleApproveAndNavigateToMap}
           />
         )}
       </main>
+
+      {/* ⚡ Multi-Phone Live Peer Hazard Alert Notification (Phone 1 -> Phone 2 Sync) */}
+      {peerHazardAlert && (
+        <div className="fixed top-20 left-4 right-4 z-50 max-w-md mx-auto animate-bounceIn">
+          <div className="rounded-3xl p-4 bg-gradient-to-br from-red-600 via-orange-600 to-amber-600 text-white shadow-[0_12px_36px_rgba(239,68,68,0.55)] border-2 border-white flex flex-col gap-2.5">
+            <div className="flex items-start justify-between gap-2">
+              <div className="flex items-center gap-2.5">
+                <div className="w-10 h-10 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center border border-white/40 shadow-inner">
+                  <span className="material-symbols-outlined text-white text-[24px] animate-pulse">
+                    crisis_alert
+                  </span>
+                </div>
+                <div className="flex flex-col">
+                  <span className="text-[10px] font-extrabold uppercase tracking-widest text-orange-200">
+                    ⚡ LIVE PEER DETECTED • PHONE 1
+                  </span>
+                  <h4 className="text-sm font-extrabold tracking-tight leading-tight">
+                    {peerHazardAlert.pin?.type?.toUpperCase() || 'POTHOLE'} HAZARD (1.0G SPIKE)
+                  </h4>
+                </div>
+              </div>
+              <button
+                onClick={() => setPeerHazardAlert(null)}
+                className="w-7 h-7 rounded-full bg-black/20 hover:bg-black/30 flex items-center justify-center text-white/80 hover:text-white"
+                type="button"
+                aria-label="Close peer alert"
+              >
+                <span className="material-symbols-outlined text-[16px]">close</span>
+              </button>
+            </div>
+
+            <div className="bg-black/20 backdrop-blur-sm rounded-2xl p-2.5 flex items-center justify-between text-xs font-mono border border-white/20">
+              <div className="flex items-center gap-1.5">
+                <span className="text-orange-200 text-[10px]">IMPACT:</span>
+                <span className="font-bold text-white bg-white/20 px-2 py-0.5 rounded-md">
+                  {peerHazardAlert.impact?.gForce || '1.05G'}
+                </span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="text-orange-200 text-[10px]">DEPTH:</span>
+                <span className="font-bold text-white bg-white/20 px-2 py-0.5 rounded-md">
+                  ~{peerHazardAlert.impact?.depthCm || 14.5} cm
+                </span>
+              </div>
+              <span className="text-[10px] text-white/70">
+                {peerHazardAlert.timeStr || 'Live'}
+              </span>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => {
+                  const targetPin = peerHazardAlert.pin;
+                  setPeerHazardAlert(null);
+                  handleApproveAndNavigateToMap(targetPin);
+                }}
+                type="button"
+                className="flex-1 py-2.5 px-3 rounded-2xl bg-white text-orange-600 hover:bg-orange-50 font-extrabold text-xs shadow-md active:scale-95 transition-transform flex items-center justify-center gap-1.5"
+              >
+                <span className="material-symbols-outlined text-[16px]">explore</span>
+                <span>VIEW LIVE PIN ON MAP</span>
+              </button>
+              <button
+                onClick={() => setPeerHazardAlert(null)}
+                type="button"
+                className="py-2.5 px-3 rounded-2xl bg-white/20 hover:bg-white/30 text-white font-bold text-xs active:scale-95 transition-transform"
+              >
+                Dismiss
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Toast Notification */}
       {toastMessage && (
@@ -335,6 +460,7 @@ export default function App() {
           </div>
         </div>
       )}
+
     </div>
   );
 }

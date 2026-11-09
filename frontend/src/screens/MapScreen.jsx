@@ -19,9 +19,10 @@ function calculateDistanceMeters(lat1, lon1, lat2, lon2) {
 }
 
 function formatDistance(meters) {
-  if (meters === null || meters === undefined) return '~75m';
-  if (meters < 1000) return `${meters}m`;
-  return `${(meters / 1000).toFixed(1)}km`;
+  const m = Number(meters);
+  if (!Number.isFinite(m) || m < 0) return '~75m';
+  if (m < 1000) return `${Math.round(m)}m`;
+  return `${(m / 1000).toFixed(1)}km`;
 }
 
 // Key Hyderabad Corridors for rapid jump
@@ -166,6 +167,43 @@ const FREE_MAP_PROVIDERS = {
   }
 };
 
+// Claude Live Map Severity Palette
+const SEVERITY_COLORS = {
+  Minor: '#10b981',      // emerald green
+  Moderate: '#f59e0b',   // amber
+  Severe: '#ef4444',     // red
+  Critical: '#7f1d1d'    // dark red
+};
+
+// Claude Live Map Popup Content Generator
+function createPopupContent(pin) {
+  const sevColor = SEVERITY_COLORS[pin.severity] || (pin.severityLevel >= 5 ? '#7f1d1d' : '#ef4444');
+  const typeStr = pin.type ? pin.type.charAt(0).toUpperCase() + pin.type.slice(1) : 'Pothole';
+  const dateStr = pin.createdAt ? new Date(pin.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Live';
+  const photoUrl = pin.photoUrl || pin.imageUrl;
+  return `
+    <div style="min-width: 210px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; color: #1e293b; padding: 12px;">
+      <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom: 6px; gap: 8px;">
+        <strong style="font-size: 13px; color: #0f172a;">${typeStr} Hazard</strong>
+        <span style="background:${sevColor}; color:#fff; font-size:10px; font-weight:700; padding:2px 8px; border-radius:9999px;">${pin.severity || 'Moderate'}</span>
+      </div>
+      <div style="font-size: 11px; margin-bottom: 3px; color: #475569;">
+        <strong>Status:</strong> <span style="font-weight:700; color:${pin.status === 'verified' ? '#10b981' : '#f59e0b'}; text-transform:uppercase;">${pin.status || 'unverified'}</span>
+      </div>
+      <div style="font-size: 11px; margin-bottom: 3px; color: #475569;">
+        <strong>Confirmations:</strong> <span style="font-weight:700; color:#10b981;">${pin.confirmations || 0}</span> | <strong>Disputed:</strong> <span style="font-weight:700; color:#ef4444;">${pin.rejections || 0}</span>
+      </div>
+      ${pin.address ? `<div style="font-size: 10px; color: #64748b; margin-top: 4px; line-height: 1.3;">📍 ${pin.address}</div>` : ''}
+      ${pin.depthCm ? `<div style="font-size: 10px; color: #d97706; margin-top: 2px; font-weight:600;">⚡ Depth: ~${pin.depthCm} cm</div>` : ''}
+      ${photoUrl ? `<div style="margin-top: 6px;"><a href="${photoUrl}" target="_blank" style="font-size: 10px; font-weight:700; color: #2563eb; text-decoration: underline;">📷 View Photo Evidence</a></div>` : ''}
+      <div style="font-size: 9px; color: #94a3b8; margin-top: 6px; border-top: 1px solid #f1f5f9; padding-top: 4px; display:flex; justify-content:space-between;">
+        <span>Reported: ${dateStr}</span>
+        <span>ID: ${String(pin.id || pin._id || '').slice(-6)}</span>
+      </div>
+    </div>
+  `;
+}
+
 // Create custom Google Maps teardrop marker for Leaflet
 function createGoogleTeardropIcon(pin, isSelected) {
   const isCritical = pin.severity === 'Critical' || pin.severityLevel >= 5;
@@ -173,7 +211,7 @@ function createGoogleTeardropIcon(pin, isSelected) {
   const isMetalPlate = pin.type === 'metal-plate';
   const pinColor = isCritical ? '#EA4335' : isSpeedBreaker ? '#FBBC04' : isMetalPlate ? '#4285F4' : '#EA4335';
   const iconSymbol = isSpeedBreaker ? 'speed' : isMetalPlate ? 'shield' : 'warning';
-  const label = pin.address ? pin.address.split(',')[0].replace('Incident at ', '') : pin.type;
+  const label = (pin?.address ? String(pin.address).split(',')[0].replace('Incident at ', '') : pin?.type) || 'Hazard';
 
   return L.divIcon({
     className: 'custom-leaflet-gpin',
@@ -217,7 +255,7 @@ function createUserGpsIcon() {
   });
 }
 
-export default function MapScreen({ onEmergencyReport, onToast }) {
+export default function MapScreen({ onEmergencyReport, onToast, focusedPin }) {
   const [activeFilter, setActiveFilter] = useState('all');
   const [mapType, setMapType] = useState('roadmap');
   const [audioAlert, setAudioAlert] = useState(true);
@@ -242,6 +280,12 @@ export default function MapScreen({ onEmergencyReport, onToast }) {
   const [isAjaxSyncing, setIsAjaxSyncing] = useState(false);
   const [lastSyncStr, setLastSyncStr] = useState('Just now');
 
+  // Claude's Map Enhancements: Update Counter, Last Update Time & Map Click Coordinates
+  const [updateCount, setUpdateCount] = useState(0);
+  const [lastUpdateTime, setLastUpdateTime] = useState(new Date());
+  const [clickedCoords, setClickedCoords] = useState(null);
+  const currentPinsMapRef = useRef(new Map());
+
   // Leaflet refs
   const mapContainerRef = useRef(null);
   const mapInstanceRef = useRef(null);
@@ -249,12 +293,35 @@ export default function MapScreen({ onEmergencyReport, onToast }) {
   const markersGroupRef = useRef(null);
   const userMarkerRef = useRef(null);
 
-  // 1. AJAX fetch function (Silently syncs MongoDB pins)
+  // 1. AJAX fetch function (Silently syncs MongoDB pins + Claude Change Detection)
   const fetchPinsAjax = async (notify = false) => {
     try {
       setIsAjaxSyncing(true);
       const pins = await api.getPins();
       if (pins && Array.isArray(pins) && pins.length > 0) {
+        // Claude's Change Detection across pins
+        const newPinsMap = new Map();
+        pins.forEach(p => newPinsMap.set(p.id || p._id, p));
+
+        let hasUpdates = false;
+        newPinsMap.forEach((newPin, id) => {
+          const oldPin = currentPinsMapRef.current.get(id);
+          if (
+            !oldPin ||
+            oldPin.status !== newPin.status ||
+            oldPin.confirmations !== newPin.confirmations ||
+            oldPin.rejections !== newPin.rejections
+          ) {
+            hasUpdates = true;
+          }
+        });
+
+        if (hasUpdates || currentPinsMapRef.current.size !== newPinsMap.size) {
+          currentPinsMapRef.current = newPinsMap;
+          setUpdateCount(prev => prev + 1);
+          setLastUpdateTime(new Date());
+        }
+
         setLivePins(pins);
         const now = new Date();
         setLastSyncStr(`${now.getHours()}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`);
@@ -267,7 +334,7 @@ export default function MapScreen({ onEmergencyReport, onToast }) {
           return stillThere || prev;
         });
 
-        if (notify) onToast(`Map AJAX: Synced ${pins.length} hazards from MongoDB`);
+        if (notify) onToast(`Map AJAX: Synced ${pins.length} hazards (${updateCount + (hasUpdates ? 1 : 0)} updates)`);
       } else {
         // Fallback to seed pins if empty
         setLivePins(prev => (prev && prev.length > 0 ? prev : HYD_SEED_PINS));
@@ -280,60 +347,127 @@ export default function MapScreen({ onEmergencyReport, onToast }) {
     }
   };
 
+  // 1b. Reactively handle focusedPin from Camera Approval / Civic Work Order / Peer SSE
+  useEffect(() => {
+    if (!focusedPin) return;
+    const lat = parseFloat(focusedPin.latitude);
+    const lng = parseFloat(focusedPin.longitude);
+    if (isNaN(lat) || isNaN(lng)) return;
+
+    const pinId = String(focusedPin.id || focusedPin._id || `focus-${Date.now()}`);
+
+    // Merge into livePins immediately with verified status
+    setLivePins(prev => {
+      const exists = prev.some(p => String(p.id || p._id) === pinId);
+      if (exists) {
+        return prev.map(p =>
+          String(p.id || p._id) === pinId
+            ? { ...p, ...focusedPin, status: 'verified', confirmations: Math.max(p.confirmations || 0, 5) }
+            : p
+        );
+      }
+      return [{ ...focusedPin, id: pinId, status: 'verified', confirmations: 5 }, ...prev];
+    });
+
+    setSelectedHazard(focusedPin);
+
+    // Direct 0ms visual marker render + flyTo exact location
+    if (markersGroupRef.current && mapInstanceRef.current) {
+      try {
+        const marker = L.marker([lat, lng], {
+          icon: createGoogleTeardropIcon(focusedPin, true),
+          zIndexOffset: 1000
+        });
+        marker.bindPopup(createPopupContent(focusedPin), { maxWidth: 260, className: 'custom-leaflet-popup' });
+        markersGroupRef.current.addLayer(marker);
+        setTimeout(() => {
+          try { marker.openPopup(); } catch (_) {}
+        }, 150);
+        mapInstanceRef.current.flyTo([lat, lng], 17, { duration: 1.0 });
+      } catch (err) {
+        console.warn('Direct marker render note:', err);
+      }
+    }
+
+    onToast(`📍 Live Pin placed at exact location: [${lat.toFixed(4)}°, ${lng.toFixed(4)}°]!`);
+  }, [focusedPin]);
+
   // 2. Initialize Leaflet Map once
   useEffect(() => {
     if (!mapContainerRef.current) return;
 
-    // Destroy existing instance if any
+    // Safely remove existing instance if any
     if (mapInstanceRef.current) {
-      mapInstanceRef.current.remove();
+      try {
+        mapInstanceRef.current.remove();
+      } catch (err) {
+        console.warn('Map cleanup error:', err);
+      }
       mapInstanceRef.current = null;
+    }
+
+    // Clear any stale Leaflet ID on the DOM container to prevent "Map container is already initialized"
+    if (mapContainerRef.current._leaflet_id) {
+      delete mapContainerRef.current._leaflet_id;
     }
 
     const defaultLat = HYD_DEFAULT_COORDS.latitude;
     const defaultLng = HYD_DEFAULT_COORDS.longitude;
 
-    const map = L.map(mapContainerRef.current, {
-      center: [defaultLat, defaultLng],
-      zoom: 15,
-      zoomControl: false,
-      attributionControl: false,
-      scrollWheelZoom: false,
-      dragging: false, // Default false to prevent mobile vertical scroll trapping!
-      touchZoom: false
-    });
+    try {
+      const map = L.map(mapContainerRef.current, {
+        center: [defaultLat, defaultLng],
+        zoom: 15,
+        zoomControl: false,
+        attributionControl: false,
+        scrollWheelZoom: false,
+        dragging: false, // Default false to prevent mobile vertical scroll trapping!
+        touchZoom: false
+      });
 
-    // Initial base layer (CartoDB Google-Styled)
-    const provider = FREE_MAP_PROVIDERS.roadmap;
-    const baseLayer = L.tileLayer(provider.url, {
-      subdomains: provider.subdomains,
-      maxZoom: provider.maxZoom
-    }).addTo(map);
+      // Initial base layer (CartoDB Google-Styled)
+      const provider = FREE_MAP_PROVIDERS.roadmap;
+      const baseLayer = L.tileLayer(provider.url, {
+        subdomains: provider.subdomains,
+        maxZoom: provider.maxZoom
+      }).addTo(map);
 
-    tileLayerRef.current = baseLayer;
+      tileLayerRef.current = baseLayer;
 
-    // Feature group for hazard markers
-    const markersGroup = L.featureGroup().addTo(map);
-    markersGroupRef.current = markersGroup;
+      // Feature group for hazard markers
+      const markersGroup = L.featureGroup().addTo(map);
+      markersGroupRef.current = markersGroup;
 
-    // User GPS Marker
-    const userMarker = L.marker([defaultLat, defaultLng], {
-      icon: createUserGpsIcon(),
-      zIndexOffset: 1000
-    }).addTo(map);
-    userMarkerRef.current = userMarker;
+      // User GPS Marker
+      const userMarker = L.marker([defaultLat, defaultLng], {
+        icon: createUserGpsIcon(),
+        zIndexOffset: 1000
+      }).addTo(map);
+      userMarkerRef.current = userMarker;
 
-    mapInstanceRef.current = map;
+      // Claude's Map Click Handler: capture coordinates
+      map.on('click', (e) => {
+        const lat = +e.latlng.lat.toFixed(6);
+        const lng = +e.latlng.lng.toFixed(6);
+        console.log(`[Map Click] Lat: ${lat}, Lng: ${lng}`);
+        setClickedCoords({ lat, lng });
+        onToast(`📍 Map Clicked: [${lat}, ${lng}]`);
+      });
+
+      mapInstanceRef.current = map;
+    } catch (err) {
+      console.warn('Leaflet map initialization guarded:', err);
+    }
 
     // Invalidate size after layout stabilization so tiles fill 100% of the screen
     setTimeout(() => {
       if (mapInstanceRef.current) {
-        mapInstanceRef.current.invalidateSize();
+        try { mapInstanceRef.current.invalidateSize(); } catch (_) {}
       }
     }, 150);
     setTimeout(() => {
       if (mapInstanceRef.current) {
-        mapInstanceRef.current.invalidateSize();
+        try { mapInstanceRef.current.invalidateSize(); } catch (_) {}
       }
     }, 500);
 
@@ -356,7 +490,7 @@ export default function MapScreen({ onEmergencyReport, onToast }) {
           });
 
           if (userMarkerRef.current) {
-            userMarkerRef.current.setLatLng([lat, lng]);
+            try { userMarkerRef.current.setLatLng([lat, lng]); } catch (_) {}
           }
         },
         err => console.log('Geolocation notice:', err.message),
@@ -369,21 +503,65 @@ export default function MapScreen({ onEmergencyReport, onToast }) {
       fetchPinsAjax(false);
     }, 3500);
 
-    const handleSensorImpact = () => {
-      fetchPinsAjax(false);
-      onToast('🚨 Sensor Auto-Hazard added to Map via AJAX!');
-    };
-    window.addEventListener('roadbump:autoHazardDetected', handleSensorImpact);
+    // ⚡ Real-Time Multi-Device instant sync via SSE (Phone 1 detects -> Phone 2 maps instantly)
+    const unsubscribeSSE = api.subscribeToEvents((event) => {
+      if (event.type === 'hazard_detected' && event.pin) {
+        const newPin = event.pin;
+        const lat = parseFloat(newPin.latitude);
+        const lng = parseFloat(newPin.longitude);
+        const pinId = String(newPin.id || newPin._id || `peer-${Date.now()}`);
+
+        setLivePins(prev => {
+          const exists = prev.some(p => String(p.id || p._id) === pinId);
+          if (exists) return prev.map(p => String(p.id || p._id) === pinId ? newPin : p);
+          return [newPin, ...prev];
+        });
+        setSelectedHazard(newPin);
+
+        // Immediate direct marker rendering on Leaflet map
+        if (markersGroupRef.current && !isNaN(lat) && !isNaN(lng)) {
+          try {
+            const marker = L.marker([lat, lng], {
+              icon: createGoogleTeardropIcon(newPin, true),
+              zIndexOffset: 1000
+            });
+            marker.bindPopup(createPopupContent(newPin), { maxWidth: 260, className: 'custom-leaflet-popup' });
+            markersGroupRef.current.addLayer(marker);
+            setTimeout(() => {
+              try { marker.openPopup(); } catch (_) {}
+            }, 150);
+            if (mapInstanceRef.current) {
+              mapInstanceRef.current.flyTo([lat, lng], 17, { duration: 1.0 });
+            }
+          } catch (_) {}
+        }
+
+        const latStr = (!isNaN(lat) ? lat : 17.44).toFixed(4);
+        const lngStr = (!isNaN(lng) ? lng : 78.34).toFixed(4);
+        onToast(`⚡ LIVE PEER PIN: ${newPin.type?.toUpperCase()} [${latStr}°, ${lngStr}°] (1.0G Spike)!`);
+      }
+      if (event.type === 'hazard_approved') {
+        fetchPinsAjax(false);
+      }
+      if (event.type === 'pins_polled' && Array.isArray(event.pins)) {
+        setLivePins(event.pins);
+      }
+    });
 
     return () => {
       if (geoWatchId !== null && navigator.geolocation) {
         navigator.geolocation.clearWatch(geoWatchId);
       }
       clearInterval(ajaxInterval);
-      window.removeEventListener('roadbump:autoHazardDetected', handleSensorImpact);
+      if (unsubscribeSSE) unsubscribeSSE();
       if (mapInstanceRef.current) {
-        mapInstanceRef.current.remove();
+        try {
+          mapInstanceRef.current.remove();
+        } catch (_) {}
         mapInstanceRef.current = null;
+      }
+      if (mapContainerRef.current && mapContainerRef.current._leaflet_id) {
+        delete mapContainerRef.current._leaflet_id;
       }
     };
   }, []);
@@ -420,7 +598,16 @@ export default function MapScreen({ onEmergencyReport, onToast }) {
     tileLayerRef.current = newLayer;
   }, [mapType]);
 
-  // 5. Reactively render Hazard Markers on Leaflet
+  // Filter pins (computed before rendering effect)
+  const filteredPins = livePins.filter(pin => {
+    if (activeFilter === 'all') return true;
+    if (activeFilter === 'verified') return pin.status === 'verified' || (pin.confirmations && pin.confirmations >= 3);
+    if (activeFilter === 'critical') return pin.severity === 'Critical' || (pin.severityLevel && pin.severityLevel >= 5);
+    if (activeFilter === 'speedbreakers') return pin.type === 'speed-breaker';
+    return true;
+  });
+
+  // 5. Reactively render Hazard Markers on Leaflet with Claude's Popup
   useEffect(() => {
     const markersGroup = markersGroupRef.current;
     if (!markersGroup) return;
@@ -428,36 +615,46 @@ export default function MapScreen({ onEmergencyReport, onToast }) {
     markersGroup.clearLayers();
 
     filteredPins.forEach(pin => {
-      if (!pin.latitude || !pin.longitude) return;
+      const lat = parseFloat(pin.latitude);
+      const lng = parseFloat(pin.longitude);
+      if (isNaN(lat) || isNaN(lng)) return;
 
-      const isSelected = selectedHazard && (selectedHazard.id || selectedHazard._id) === (pin.id || pin._id);
+      const pinId = String(pin.id || pin._id || '');
+      const selectedId = String(selectedHazard?.id || selectedHazard?._id || '');
+      const isSelected = Boolean(selectedHazard && pinId && selectedId && pinId === selectedId);
       const icon = createGoogleTeardropIcon(pin, isSelected);
 
-      const marker = L.marker([pin.latitude, pin.longitude], {
+      const marker = L.marker([lat, lng], {
         icon,
         zIndexOffset: isSelected ? 500 : 100
       });
 
+      // Claude's interactive rich popup
+      marker.bindPopup(createPopupContent(pin), {
+        maxWidth: 260,
+        className: 'custom-leaflet-popup'
+      });
+
       marker.on('click', () => {
         setSelectedHazard(pin);
+        marker.openPopup();
         onToast(`Selected: ${pin.address || pin.type}`);
         if (mapInstanceRef.current) {
-          mapInstanceRef.current.panTo([pin.latitude, pin.longitude], { animate: true, duration: 0.5 });
+          mapInstanceRef.current.panTo([lat, lng], { animate: true, duration: 0.5 });
         }
       });
+
+      if (isSelected) {
+        setTimeout(() => {
+          try {
+            marker.openPopup();
+          } catch (_) {}
+        }, 120);
+      }
 
       markersGroup.addLayer(marker);
     });
   }, [livePins, activeFilter, selectedHazard]);
-
-  // Filter pins
-  const filteredPins = livePins.filter(pin => {
-    if (activeFilter === 'all') return true;
-    if (activeFilter === 'verified') return pin.status === 'verified' || pin.confirmations >= 3;
-    if (activeFilter === 'critical') return pin.severity === 'Critical' || pin.severityLevel >= 5;
-    if (activeFilter === 'speedbreakers') return pin.type === 'speed-breaker';
-    return true;
-  });
 
   // Recenter handler
   const handleRecenter = () => {
@@ -545,6 +742,36 @@ export default function MapScreen({ onEmergencyReport, onToast }) {
     } catch (e) {
       console.warn('Instant report note:', e);
       if (onEmergencyReport) onEmergencyReport();
+    }
+  };
+
+  // Claude's Map Click: Create Hazard Pin at specific clicked GPS coordinates
+  const handleCreatePinAtCoords = async (lat, lng) => {
+    try {
+      const pinPayload = {
+        latitude: lat,
+        longitude: lng,
+        type: 'pothole',
+        severity: 'Critical',
+        severityLevel: 5,
+        depthCm: 11.0,
+        status: 'unverified',
+        confirmations: 1,
+        address: `Custom Hazard at [${lat.toFixed(4)}, ${lng.toFixed(4)}], Hyderabad`
+      };
+      const res = await api.createPin(pinPayload);
+      if (res && res.data) {
+        setLivePins(prev => [res.data, ...prev]);
+        setSelectedHazard(res.data);
+        setClickedCoords(null);
+        if (mapInstanceRef.current) {
+          mapInstanceRef.current.flyTo([lat, lng], 16, { duration: 0.8 });
+        }
+        onToast(`Hazard dropped at [${lat}, ${lng}]!`);
+      }
+    } catch (e) {
+      console.warn('Error creating pin at clicked coords:', e);
+      onToast(`Failed to drop hazard: ${e.message}`);
     }
   };
 
@@ -698,7 +925,7 @@ export default function MapScreen({ onEmergencyReport, onToast }) {
 
         {/* TOP STATUS HUD: REAL-TIME AJAX & SCROLL / PAN MODE TOGGLE */}
         <div className="absolute top-2 left-3 right-3 z-30 flex items-center justify-between pointer-events-none">
-          {/* Live AJAX Status Pill */}
+          {/* Live AJAX Status Pill with Claude's update counter */}
           <div className="flex items-center gap-1.5 bg-white/95 backdrop-blur-sm px-3 py-1 rounded-full shadow-md border border-slate-200/90 pointer-events-auto">
             <span className="relative flex h-2 w-2">
               <span
@@ -713,7 +940,10 @@ export default function MapScreen({ onEmergencyReport, onToast }) {
               ></span>
             </span>
             <span className="text-[10px] font-bold text-slate-700">
-              {isAjaxSyncing ? 'AJAX Syncing...' : `AJAX Live (${filteredPins.length} Pins)`}
+              {isAjaxSyncing ? 'Syncing...' : `${filteredPins.length} Hazards`}
+            </span>
+            <span className="bg-[#3b82f6] text-white text-[9px] font-extrabold px-1.5 py-0.5 rounded shadow-xs" title="Claude Live Updates Counter">
+              {updateCount} updates
             </span>
             <button
               onClick={() => fetchPinsAjax(true)}
@@ -831,6 +1061,44 @@ export default function MapScreen({ onEmergencyReport, onToast }) {
             <span className="material-symbols-outlined text-[20px]">add_location_alt</span>
           </button>
         </div>
+
+        {/* CLAUDE'S SEVERITY LEGEND PILL */}
+        <div className="absolute top-12 left-3 z-20 pointer-events-auto bg-white/95 backdrop-blur-sm px-2.5 py-1 rounded-lg shadow-sm border border-slate-200/90 text-[9px] flex items-center gap-1.5">
+          <span className="font-bold text-slate-500">SEVERITY:</span>
+          <span className="flex items-center gap-0.5"><span className="w-2 h-2 rounded-full" style={{backgroundColor: SEVERITY_COLORS.Minor}}></span><span className="text-slate-600">Minor</span></span>
+          <span className="flex items-center gap-0.5"><span className="w-2 h-2 rounded-full" style={{backgroundColor: SEVERITY_COLORS.Moderate}}></span><span className="text-slate-600">Mod</span></span>
+          <span className="flex items-center gap-0.5"><span className="w-2 h-2 rounded-full" style={{backgroundColor: SEVERITY_COLORS.Severe}}></span><span className="text-slate-600">Sev</span></span>
+          <span className="flex items-center gap-0.5"><span className="w-2 h-2 rounded-full" style={{backgroundColor: SEVERITY_COLORS.Critical}}></span><span className="text-slate-600">Crit</span></span>
+        </div>
+
+        {/* CLAUDE'S CLICK-ON-MAP PIN PLACEMENT ACTION BANNER */}
+        {clickedCoords && (
+          <div className="absolute bottom-9 inset-x-3 z-30 pointer-events-auto bg-slate-900/95 text-white p-2.5 rounded-2xl shadow-2xl border border-slate-700 flex items-center justify-between animate-fadeIn">
+            <div className="flex items-center gap-2 min-w-0">
+              <span className="material-symbols-outlined text-amber-400 text-[20px]">add_location</span>
+              <div className="flex flex-col min-w-0">
+                <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Map Point Selected</span>
+                <span className="text-xs font-mono font-bold text-emerald-400 truncate">
+                  {clickedCoords.lat}, {clickedCoords.lng}
+                </span>
+              </div>
+            </div>
+            <div className="flex items-center gap-1.5 shrink-0">
+              <button
+                onClick={() => handleCreatePinAtCoords(clickedCoords.lat, clickedCoords.lng)}
+                className="bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold text-xs px-3 py-1.5 rounded-xl shadow-md active:scale-95 transition-all flex items-center gap-1"
+              >
+                <span>Drop Hazard</span>
+              </button>
+              <button
+                onClick={() => setClickedCoords(null)}
+                className="w-7 h-7 rounded-xl bg-slate-800 text-slate-300 hover:text-white flex items-center justify-center text-xs"
+              >
+                ✕
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* BOTTOM WATERMARK (Authentic Google Logo & Layer Info) */}
         <div className="absolute bottom-2 left-3 right-3 z-30 flex items-center justify-between pointer-events-none">

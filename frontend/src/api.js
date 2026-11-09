@@ -1,4 +1,7 @@
 // Dynamically resolve API URL so USB tethering / local network IP works seamlessly on Android
+export const DEFAULT_LAN_IP = '172.16.2.161';
+let detectedFastBase = null;
+
 const getApiBase = () => {
   if (typeof window !== 'undefined') {
     // Check if user set custom host override
@@ -6,15 +9,36 @@ const getApiBase = () => {
     if (savedHost) {
       return savedHost;
     }
-    const hostname = window.location.hostname || 'localhost';
-    // Inside Capacitor on mobile, hostname may be 'localhost' or ''
-    if (!hostname || hostname === 'localhost' || hostname === '127.0.0.1') {
-      return 'http://127.0.0.1:5000/api';
+    if (detectedFastBase) {
+      return detectedFastBase;
     }
-    return `http://${hostname}:5000/api`;
+    const hostname = window.location.hostname || '';
+    // If running in browser on LAN (e.g. http://172.16.2.161:3000)
+    if (hostname && hostname !== 'localhost' && hostname !== '127.0.0.1') {
+      return `http://${hostname}:5000/api`;
+    }
+    // Inside Capacitor on mobile or localhost
+    return `http://${DEFAULT_LAN_IP}:5000/api`;
   }
-  return 'http://127.0.0.1:5000/api';
+  return `http://${DEFAULT_LAN_IP}:5000/api`;
 };
+
+// Auto-probe fastest reachable backend endpoint on app boot
+if (typeof window !== 'undefined') {
+  (async () => {
+    try {
+      const probe127 = await Promise.race([
+        fetch('http://127.0.0.1:5000/api/health'),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 800))
+      ]);
+      if (probe127 && probe127.ok) {
+        detectedFastBase = 'http://127.0.0.1:5000/api';
+        return;
+      }
+    } catch (_) {}
+    detectedFastBase = `http://${DEFAULT_LAN_IP}:5000/api`;
+  })();
+}
 
 export const api = {
   getBaseUrl: getApiBase,
@@ -130,6 +154,114 @@ export const api = {
       body: JSON.stringify(payload)
     });
     return await res.json();
+  },
+
+  // Google Sheets Integration
+  syncToGoogleSheets: async (id, webhookUrl) => {
+    try {
+      const res = await fetch(`${getApiBase()}/pins/${id}/google-sheets`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ webhookUrl })
+      });
+      return await res.json();
+    } catch (e) {
+      console.warn('Google Sheets sync failed:', e);
+      return { success: false, error: e.message };
+    }
+  },
+
+  getGoogleSheetsRecords: async () => {
+    try {
+      const res = await fetch(`${getApiBase()}/google-sheets/records`);
+      return await res.json();
+    } catch (e) {
+      console.warn('Fetch Google Sheets records failed:', e);
+      return { success: false, records: [] };
+    }
+  },
+
+  getGoogleSheetsTemplate: async () => {
+    try {
+      const res = await fetch(`${getApiBase()}/google-sheets/template`);
+      return await res.json();
+    } catch (e) {
+      console.warn('Fetch Google Sheets template failed:', e);
+      return null;
+    }
+  },
+
+  // Real-Time Multi-Device SSE Event Stream
+  subscribeToEvents: (onEvent) => {
+    if (typeof window === 'undefined' || !window.EventSource) return () => {};
+
+    let eventSource = null;
+    let pollInterval = null;
+    let reconnectTimeout = null;
+    let isClosed = false;
+
+    const connectSSE = () => {
+      if (isClosed) return;
+      try {
+        const streamUrl = `${getApiBase()}/events`;
+        eventSource = new EventSource(streamUrl);
+
+        eventSource.addEventListener('hazard_detected', (e) => {
+          if (isClosed) return;
+          try {
+            const data = JSON.parse(e.data);
+            if (onEvent) onEvent({ type: 'hazard_detected', ...data });
+          } catch (_) {}
+        });
+
+        eventSource.addEventListener('hazard_approved', (e) => {
+          if (isClosed) return;
+          try {
+            const data = JSON.parse(e.data);
+            if (onEvent) onEvent({ type: 'hazard_approved', ...data });
+          } catch (_) {}
+        });
+
+        eventSource.onerror = () => {
+          if (isClosed) return;
+          try { eventSource.close(); } catch (_) {}
+          // Fast-poll fallback if SSE stream disconnects
+          if (!pollInterval && !isClosed) {
+            pollInterval = setInterval(async () => {
+              if (isClosed) return;
+              try {
+                const pins = await api.getPins();
+                if (onEvent) onEvent({ type: 'pins_polled', pins });
+              } catch (_) {}
+            }, 3000);
+          }
+          if (!isClosed) {
+            reconnectTimeout = setTimeout(connectSSE, 6000);
+          }
+        };
+      } catch (err) {
+        if (!isClosed && !pollInterval) {
+          pollInterval = setInterval(async () => {
+            if (isClosed) return;
+            try {
+              const pins = await api.getPins();
+              if (onEvent) onEvent({ type: 'pins_polled', pins });
+            } catch (_) {}
+          }, 3000);
+        }
+      }
+    };
+
+    connectSSE();
+
+    return () => {
+      isClosed = true;
+      if (reconnectTimeout) clearTimeout(reconnectTimeout);
+      if (eventSource) {
+        try { eventSource.close(); } catch (_) {}
+      }
+      if (pollInterval) clearInterval(pollInterval);
+    };
   }
 };
 

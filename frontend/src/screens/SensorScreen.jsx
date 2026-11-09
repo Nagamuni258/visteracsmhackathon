@@ -277,11 +277,11 @@ export default function SensorScreen({ onToast }) {
             className="flex-1 py-2 px-1 text-[11px] font-bold rounded-xl clay-button-secondary active:scale-95 transition-all text-center"
             onClick={() => {
               sensorEngine.playAlertTone('pothole', 4);
-              triggerSim('pothole', 'Pothole (2.8G)');
+              triggerSim('pothole', 'Pothole (1.0G)');
             }}
             type="button"
           >
-            Pothole (2.8G)
+            Pothole (1.0G)
           </button>
           <button
             className="flex-1 py-2 px-1 text-[11px] font-bold rounded-xl clay-button-secondary active:scale-95 transition-all text-center"
