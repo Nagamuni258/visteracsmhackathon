@@ -46,40 +46,6 @@ export default function ReportScreen({ onToast, onReportSubmitted, onNavigateToC
   const fileInputRef = useRef(null);
   const streamRef = useRef(null);
 
-  // ... rest of existing code unchanged ...
-
-  // At the end of the return(), before the closing div, add the municipal auto-upload toggle:
-
-export default function ReportScreen({ onToast, onReportSubmitted, onNavigateToCivic, onApproveAndNavigateToMap }) {
-  const [flashOn, setFlashOn] = useState(false);
-  const [zoomLevel, setZoomLevel] = useState('1x');
-  const [showGrid, setShowGrid] = useState(true);
-  const [hazardType, setHazardType] = useState('pothole');
-  const [severityLevel, setSeverityLevel] = useState(4); // Default to Critical for civic impact
-  const [fieldNotes, setFieldNotes] = useState('Deep asphalt crater near storm drain. Severe hazard to two-wheelers and night traffic.');
-  const [shutterSnapping, setShutterSnapping] = useState(false);
-  const [photoCount, setPhotoCount] = useState(1);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [broadcastActive, setBroadcastActive] = useState(false);
-
-  // Live Camera Stream State
-  const [cameraActive, setCameraActive] = useState(false);
-  const [facingMode, setFacingMode] = useState('environment'); // back camera
-  const [capturedPhoto, setCapturedPhoto] = useState(null);
-  const [cameraError, setCameraError] = useState(null);
-
-  // Live GPS Coordinates
-  const [coords, setCoords] = useState({
-    latitude: 17.440081,
-    longitude: 78.348915,
-    locationName: 'Cyber Towers Junction (HITEC City), Hyderabad'
-  });
-
-  const videoRef = useRef(null);
-  const canvasRef = useRef(null);
-  const fileInputRef = useRef(null);
-  const streamRef = useRef(null);
-
   // Start live device camera stream
   const startCamera = async (mode = 'environment') => {
     try {
