@@ -33,7 +33,8 @@ The flow runs completely on‑device for detection, with **Firebase Firestore** 
      "reporterId": "device‑A"
    }
    ```
-6. If the reporter also takes a **photo** (optional mode), the photo is compressed, GPS‑stamped, uploaded to **Firebase Storage**, and its URL is attached to the pin.
+6. If the reporter also takes a **photo** (optional mode), the photo is compressed, GPS‑stamped, uploaded to **Firebase Storage**, and its URL is attached to the pin.  
+   *(Reference captures: [`screenshots/phone_report_screen.png`](screenshots/phone_report_screen.png), [`screenshots/phone_active.png`](screenshots/phone_active.png))*
 
 ---
 
@@ -44,7 +45,8 @@ The flow runs completely on‑device for detection, with **Firebase Firestore** 
 3. Opening the notification launches the **Admin Dashboard** (a simple screen in the app) that shows:
    - Map centered on the new pin.
    - Impact details (g‑force, speed, severity).
-   - Photo thumbnail (if present).
+   - Photo thumbnail (if present).  
+   *(Reference captures: [`screenshots/phone_report_screen_approve.png`](screenshots/phone_report_screen_approve.png), [`screenshots/phone_approved_map_view.png`](screenshots/phone_approved_map_view.png))*
 4. The admin taps **Approve**.
    - The pin’s `status` field is updated to **"approved"** and the pin appears on the **public map** for all users.
    - Simultaneously, a **structured report** is generated and sent to the **admin panel** (a web endpoint). The payload includes GPS, severity, timestamp, and photo URL.
@@ -57,7 +59,8 @@ The flow runs completely on‑device for detection, with **Firebase Firestore** 
 2. Tapping the pin opens a detail pane with:
    - Photo (if provided).
    - Current feedback counts.
-   - Two buttons: **"There is a pothole"** (positive) and **"Not a pothole"** (negative).
+   - Two buttons: **"There is a pothole"** (positive) and **"Not a pothole"** (negative).  
+   *(Reference captures: [`screenshots/phone_screen_map.png`](screenshots/phone_screen_map.png), [`screenshots/phone_screen_map_verified.png`](screenshots/phone_screen_map_verified.png))*
 3. Users can cast their vote. Each vote is written to Firestore as a sub‑collection `feedback`:
    ```json
    { "userId": "device‑C", "type": "positive" }

@@ -51,6 +51,13 @@ expo build:ios
 4. **ExportScreen** – builds a CSV string via `js‑csv‑writer` and opens the device share sheet with `expo-sharing`.
 5. **Firebase sync** – when pressing *Sync* all pending detections are written to a Firestore collection with `writeBatch()`.  Offline writes are queued and retried automatically.
 
+## Screenshots & Visuals
+All mobile testing screen captures and visual artifacts have been cataloged in [`screenshots/`](screenshots/):
+- **Live HUD & Telemetry**: [`screenshots/phone_active.png`](screenshots/phone_active.png), [`screenshots/phone_hud_live_location.png`](screenshots/phone_hud_live_location.png)
+- **Interactive Hazard Map**: [`screenshots/phone_screen_map.png`](screenshots/phone_screen_map.png), [`screenshots/phone_screen_map_verified.png`](screenshots/phone_screen_map_verified.png)
+- **Pedestrian Photo Reporting**: [`screenshots/phone_report_screen.png`](screenshots/phone_report_screen.png), [`screenshots/phone_report_screen_approve.png`](screenshots/phone_report_screen_approve.png)
+- Complete directory listing and catalog available in [screenshots/README.md](screenshots/README.md).
+
 ## Prerequisites
 - Node >= 20
 - Expo CLI (`npm i -g expo-cli`)
